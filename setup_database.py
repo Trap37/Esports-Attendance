@@ -9,9 +9,9 @@ def create_database():
 
     # Check if it already exists just to warn the user
     if os.path.exists(db_file):
-        print(f"⚠️  Warning: '{db_file}' already exists.")
+        print(f"Warning: '{db_file}' already exists.")
     else:
-        print(f"🔨 Creating new database: '{db_file}'...")
+        print(f"Creating new database: '{db_file}'...")
 
     conn = sqlite3.connect(db_file)
     cursor = conn.cursor()

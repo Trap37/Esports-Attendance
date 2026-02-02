@@ -1,0 +1,9 @@
+# Ignore everything
+*
+
+# Allow these files
+!.gitignore
+!attendance.db
+!Esports Attendance Architecture.png
+!sentinel.py
+!setup_database.py

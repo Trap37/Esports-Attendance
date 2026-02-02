@@ -42,6 +42,27 @@ def log_visit(scanner_code):
     return student_name
 
 
+def get_todays_attendance():
+    """Return a list of student names who scanned in today and the total count."""
+    today = datetime.now().strftime("%Y-%m-%d")
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT s.full_name, MIN(v.check_in_time) AS first_scan
+        FROM visits v
+        JOIN students s ON v.scanner_code = s.scanner_code
+        WHERE v.check_in_time LIKE ?
+        GROUP BY s.full_name
+        ORDER BY first_scan
+        """,
+        (today + "%",),
+    )
+    names = [row["full_name"] for row in cursor.fetchall()]
+    conn.close()
+    return names
+
+
 def register_student(scanner_code, school_id, full_name, major, grade_level):
     """Insert a new student into the database. Returns True on success."""
     conn = get_db_connection()
@@ -164,37 +185,58 @@ class SentinelApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Esports Attendance")
-        self.geometry("500x400")
+        self.geometry("700x450")
 
-        # --- Top frame: scan input ---
+        # --- Top frame: scan input + register button ---
         top_frame = tk.Frame(self)
         top_frame.pack(fill="x", padx=10, pady=(10, 0))
 
         tk.Label(top_frame, text="Scan ID:", font=("Arial", 12)).pack(side="left")
         self.scan_entry = tk.Entry(top_frame, font=("Arial", 12))
-        self.scan_entry.pack(side="left", fill="x", expand=True, padx=(5, 0))
+        self.scan_entry.pack(side="left", fill="x", expand=True, padx=(5, 5))
         self.scan_entry.bind("<Return>", self.on_scan)
 
-        # --- Register button ---
-        btn_frame = tk.Frame(self)
-        btn_frame.pack(fill="x", padx=10, pady=5)
-
-        tk.Button(btn_frame, text="Register Student", command=self.open_registration).pack(
+        tk.Button(top_frame, text="Register Student", command=self.open_registration).pack(
             side="right"
         )
 
-        # --- Log area ---
-        tk.Label(self, text="Scan Log", font=("Arial", 10, "bold"), anchor="w").pack(
-            fill="x", padx=10
+        # --- Main content: two panels side by side ---
+        content_frame = tk.Frame(self)
+        content_frame.pack(fill="both", expand=True, padx=10, pady=(5, 10))
+        content_frame.columnconfigure(0, weight=1)
+        content_frame.columnconfigure(1, weight=1)
+        content_frame.rowconfigure(1, weight=1)
+
+        # --- Left panel: Scan Log ---
+        tk.Label(content_frame, text="Scan Log", font=("Arial", 10, "bold"), anchor="w").grid(
+            row=0, column=0, sticky="w"
         )
-        log_frame = tk.Frame(self)
-        log_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        log_frame = tk.Frame(content_frame)
+        log_frame.grid(row=1, column=0, sticky="nsew", padx=(0, 5))
 
         self.log_text = tk.Text(log_frame, state="disabled", wrap="word", font=("Courier", 10))
-        scrollbar = tk.Scrollbar(log_frame, command=self.log_text.yview)
-        self.log_text.configure(yscrollcommand=scrollbar.set)
-        scrollbar.pack(side="right", fill="y")
+        log_scroll = tk.Scrollbar(log_frame, command=self.log_text.yview)
+        self.log_text.configure(yscrollcommand=log_scroll.set)
+        log_scroll.pack(side="right", fill="y")
         self.log_text.pack(side="left", fill="both", expand=True)
+
+        # --- Right panel: Today's Attendance ---
+        self.attendance_header = tk.Label(
+            content_frame, text="Today's Attendance (0)", font=("Arial", 10, "bold"), anchor="w"
+        )
+        self.attendance_header.grid(row=0, column=1, sticky="w")
+
+        att_frame = tk.Frame(content_frame)
+        att_frame.grid(row=1, column=1, sticky="nsew", padx=(5, 0))
+
+        self.attendance_list = tk.Listbox(att_frame, font=("Arial", 10))
+        att_scroll = tk.Scrollbar(att_frame, command=self.attendance_list.yview)
+        self.attendance_list.configure(yscrollcommand=att_scroll.set)
+        att_scroll.pack(side="right", fill="y")
+        self.attendance_list.pack(side="left", fill="both", expand=True)
+
+        # Load today's attendance on startup
+        self._refresh_attendance()
 
         # Keep focus on the scan entry
         self.scan_entry.focus_set()
@@ -224,14 +266,24 @@ class SentinelApp(tk.Tk):
         now_str = datetime.now().strftime("%H:%M:%S")
 
         if student_name:
-            msg = f"[{now_str}]  {student_name} (ID: {scanned_id})\n"
+            msg = f"[{now_str}]  Welcome {student_name}!\n"
         else:
-            msg = f"[{now_str}]  Unknown ID: {scanned_id}  (not registered)\n"
+            msg = f"[{now_str}]  Unknown scan (not registered)\n"
 
         self.log_text.configure(state="normal")
         self.log_text.insert("end", msg)
         self.log_text.see("end")
         self.log_text.configure(state="disabled")
+
+        self._refresh_attendance()
+
+    def _refresh_attendance(self):
+        """Reload today's attendance list and update the count."""
+        names = get_todays_attendance()
+        self.attendance_header.configure(text=f"Today's Attendance ({len(names)})")
+        self.attendance_list.delete(0, "end")
+        for name in names:
+            self.attendance_list.insert("end", name)
 
     def open_registration(self):
         RegistrationWindow(self)
