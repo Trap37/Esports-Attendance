@@ -3,6 +3,10 @@
 // ── State ─────────────────────────────────────────────────────────────────────
 let activeReturnCheckoutId = null;
 
+// Reports state
+const reportCharts = {};       // keyed by canvas id; holds Chart instances for destroy/re-create
+let reportsInitialized = false;
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
   setupTabs();
@@ -75,6 +79,8 @@ function setupTabs() {
       if (panel) panel.classList.remove("hidden");
       if (btn.dataset.tab === "gear") {
         loadGearTab();
+      } else if (btn.dataset.tab === "reports") {
+        initReportsTab();
       } else {
         focusScanInput();
       }
@@ -391,4 +397,168 @@ function escapeHtml(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+// ── Reports tab ───────────────────────────────────────────────────────────────
+
+function initReportsTab() {
+  if (!reportsInitialized) {
+    // Set default date range: first day of current month → today
+    const today = new Date();
+    const yyyy  = today.getFullYear();
+    const mm    = String(today.getMonth() + 1).padStart(2, "0");
+    const dd    = String(today.getDate()).padStart(2, "0");
+    document.getElementById("report-start").value = `${yyyy}-${mm}-01`;
+    document.getElementById("report-end").value   = `${yyyy}-${mm}-${dd}`;
+
+    document.getElementById("btn-reports-apply").addEventListener("click", loadReports);
+    document.getElementById("btn-export-attendance").addEventListener("click", downloadAttendanceCsv);
+    document.getElementById("btn-export-gear").addEventListener("click", downloadGearCsv);
+
+    reportsInitialized = true;
+  }
+  loadReports();
+}
+
+async function loadReports() {
+  const start = document.getElementById("report-start").value;
+  const end   = document.getElementById("report-end").value;
+  if (!start || !end) return;
+
+  const qs = `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
+
+  try {
+    const [summaryRes, overTimeRes, byMajorRes, byGradeRes, peakDaysRes, gearRes] =
+      await Promise.all([
+        fetch(`/api/reports/summary${qs}`),
+        fetch(`/api/reports/attendance-over-time${qs}`),
+        fetch(`/api/reports/by-major${qs}`),
+        fetch(`/api/reports/by-grade${qs}`),
+        fetch(`/api/reports/peak-days${qs}`),
+        fetch(`/api/reports/gear-usage${qs}`),
+      ]);
+
+    const [summary, overTime, byMajor, byGrade, peakDays, gear] = await Promise.all([
+      summaryRes.json(), overTimeRes.json(), byMajorRes.json(),
+      byGradeRes.json(), peakDaysRes.json(), gearRes.json(),
+    ]);
+
+    renderSummaryCards(summary);
+    renderChart("chart-over-time",  buildBarConfig(overTime,  "Visits",     false));
+    renderChart("chart-peak-days",  buildBarConfig(peakDays,  "Visits",     false));
+    renderChart("chart-by-major",   buildBarConfig(byMajor,   "Visits",     true));
+    renderChart("chart-by-grade",   buildDoughnutConfig(byGrade));
+    renderChart("chart-gear-usage", buildBarConfig(gear,      "Checkouts",  false));
+  } catch {
+    // Non-critical — charts stay blank on error
+  }
+}
+
+function renderSummaryCards(s) {
+  document.getElementById("rpt-total-visits").textContent    = s.total_visits    ?? "—";
+  document.getElementById("rpt-unique-students").textContent = s.unique_students ?? "—";
+  document.getElementById("rpt-avg-per-day").textContent     =
+    s.avg_visits_per_day != null ? Number(s.avg_visits_per_day).toFixed(1) : "—";
+  document.getElementById("rpt-gear-total").textContent      = s.total_gear_checkouts ?? "—";
+}
+
+function getCsuColors() {
+  const style = getComputedStyle(document.documentElement);
+  return {
+    primary:   style.getPropertyValue("--primary").trim(),
+    secondary: style.getPropertyValue("--secondary").trim(),
+    border:    style.getPropertyValue("--border").trim(),
+    muted:     style.getPropertyValue("--muted-foreground").trim(),
+  };
+}
+
+function buildBarConfig(data, yLabel, horizontal) {
+  const { primary, border, muted } = getCsuColors();
+  return {
+    type: "bar",
+    data: {
+      labels: data.labels || [],
+      datasets: [{
+        label: yLabel,
+        data:  data.values || [],
+        backgroundColor: primary + "cc",
+        borderColor:     primary,
+        borderWidth: 1,
+        borderRadius: 4,
+      }],
+    },
+    options: {
+      indexAxis: horizontal ? "y" : "x",
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: border }, ticks: { color: muted } },
+        y: { grid: { color: border }, ticks: { color: muted }, beginAtZero: true },
+      },
+    },
+  };
+}
+
+function buildDoughnutConfig(data) {
+  const { muted } = getCsuColors();
+  const palette = [
+    "#00543C", "#FFB81C", "#004830", "#e5a518",
+    "#006B4E", "#c8921a", "#737373", "#d4d4d4",
+  ];
+  return {
+    type: "doughnut",
+    data: {
+      labels: data.labels || [],
+      datasets: [{
+        data:            data.values || [],
+        backgroundColor: palette.slice(0, (data.labels || []).length),
+        borderColor:     "#ffffff",
+        borderWidth: 2,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: {
+          position: "bottom",
+          labels: { color: muted, boxWidth: 12, padding: 12 },
+        },
+      },
+    },
+  };
+}
+
+function renderChart(canvasId, config) {
+  if (reportCharts[canvasId]) {
+    reportCharts[canvasId].destroy();
+  }
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  reportCharts[canvasId] = new Chart(canvas.getContext("2d"), config);
+}
+
+function buildReportQs() {
+  const start = document.getElementById("report-start").value;
+  const end   = document.getElementById("report-end").value;
+  return `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
+}
+
+function downloadAttendanceCsv() {
+  const a = document.createElement("a");
+  a.href = `/api/reports/export/attendance${buildReportQs()}`;
+  a.download = "";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+function downloadGearCsv() {
+  const a = document.createElement("a");
+  a.href = `/api/reports/export/gear${buildReportQs()}`;
+  a.download = "";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }

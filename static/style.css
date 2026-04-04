@@ -481,6 +481,77 @@ button:focus-visible {
   cursor: pointer;
 }
 
+/* ── Reports Tab ─────────────────────────────────────────────────────────────── */
+
+.reports-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.reports-controls-left {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  flex-wrap: wrap;
+}
+
+.reports-controls-right {
+  display: flex;
+  gap: 0.625rem;
+  flex-wrap: wrap;
+}
+
+.reports-date-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
+
+.reports-date-input {
+  padding: 0.45rem 0.75rem;
+  border: 1px solid var(--input);
+  border-radius: calc(var(--radius) - 2px);
+  font-size: 0.9rem;
+  font-family: inherit;
+  color: var(--foreground);
+  background: var(--input-background);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.reports-date-input:focus {
+  outline: none;
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px rgba(0, 84, 60, 0.12);
+}
+
+.reports-charts-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+.reports-chart-card {
+  min-height: 280px;
+}
+
+.reports-gear-canvas {
+  max-height: 220px;
+}
+
+@media (max-width: 768px) {
+  .reports-charts-row {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-cards-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 /* ── Utility ─────────────────────────────────────────────────────────────── */
 .hidden { display: none !important; }
 

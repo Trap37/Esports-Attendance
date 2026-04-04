@@ -1,5 +1,5 @@
 import sqlite3
-from datetime import datetime
+from datetime import datetime, date as date_type
 
 DB_FILE = "attendance.db"
 
@@ -223,3 +223,209 @@ def get_gear_stats():
         "mice": row["mice"] or 0,
         "other": row["other"] or 0,
     }
+
+
+# ── Reports / analytics functions ─────────────────────────────────────────────
+
+def get_report_summary(start_date, end_date):
+    """Return summary stat-card values for the given date range."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "SELECT COUNT(*) AS total FROM visits WHERE date(check_in_time) BETWEEN ? AND ?",
+        (start_date, end_date),
+    )
+    total_visits = cursor.fetchone()["total"] or 0
+
+    cursor.execute(
+        "SELECT COUNT(DISTINCT scanner_code) AS uniq FROM visits WHERE date(check_in_time) BETWEEN ? AND ?",
+        (start_date, end_date),
+    )
+    unique_students = cursor.fetchone()["uniq"] or 0
+
+    cursor.execute(
+        "SELECT COUNT(*) AS total FROM gear_checkouts WHERE date(checkout_time) BETWEEN ? AND ?",
+        (start_date, end_date),
+    )
+    total_gear = cursor.fetchone()["total"] or 0
+
+    conn.close()
+
+    start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+    end_dt   = datetime.strptime(end_date,   "%Y-%m-%d")
+    num_days = max(1, (end_dt - start_dt).days + 1)
+    avg_per_day = round(total_visits / num_days, 1)
+
+    return {
+        "total_visits": total_visits,
+        "unique_students": unique_students,
+        "avg_visits_per_day": avg_per_day,
+        "total_gear_checkouts": total_gear,
+    }
+
+
+def get_attendance_over_time(start_date, end_date):
+    """Return monthly visit counts for the given date range."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT month_str, COUNT(*) AS visit_count
+        FROM visits
+        WHERE date(check_in_time) BETWEEN ? AND ?
+        GROUP BY month_str
+        ORDER BY month_str ASC
+        """,
+        (start_date, end_date),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return {
+        "labels": [r["month_str"] for r in rows],
+        "values": [r["visit_count"] for r in rows],
+    }
+
+
+def get_attendance_by_major(start_date, end_date):
+    """Return visit counts grouped by student major."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT COALESCE(NULLIF(s.major, ''), 'Unknown') AS major,
+               COUNT(*) AS visit_count
+        FROM visits v
+        JOIN students s ON v.scanner_code = s.scanner_code
+        WHERE date(v.check_in_time) BETWEEN ? AND ?
+        GROUP BY major
+        ORDER BY visit_count DESC
+        """,
+        (start_date, end_date),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return {
+        "labels": [r["major"] for r in rows],
+        "values": [r["visit_count"] for r in rows],
+    }
+
+
+def get_attendance_by_grade(start_date, end_date):
+    """Return visit counts grouped by student grade level."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT COALESCE(NULLIF(s.grade_level, ''), 'Unknown') AS grade,
+               COUNT(*) AS visit_count
+        FROM visits v
+        JOIN students s ON v.scanner_code = s.scanner_code
+        WHERE date(v.check_in_time) BETWEEN ? AND ?
+        GROUP BY grade
+        ORDER BY visit_count DESC
+        """,
+        (start_date, end_date),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return {
+        "labels": [r["grade"] for r in rows],
+        "values": [r["visit_count"] for r in rows],
+    }
+
+
+def get_peak_days(start_date, end_date):
+    """Return visit counts per day of week (Mon–Sun order, zeros for missing days)."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT day_of_week, COUNT(*) AS visit_count
+        FROM visits
+        WHERE date(check_in_time) BETWEEN ? AND ?
+        GROUP BY day_of_week
+        """,
+        (start_date, end_date),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+
+    day_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    counts = {r["day_of_week"]: r["visit_count"] for r in rows}
+    return {
+        "labels": day_order,
+        "values": [counts.get(d, 0) for d in day_order],
+    }
+
+
+def get_gear_usage_report(start_date, end_date):
+    """Return total checkout counts per gear type for the given date range."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT
+            SUM(keyboard)  AS keyboards,
+            SUM(mouse)     AS mice,
+            SUM(mousepad)  AS mousepads,
+            SUM(headset)   AS headsets
+        FROM gear_checkouts
+        WHERE date(checkout_time) BETWEEN ? AND ?
+        """,
+        (start_date, end_date),
+    )
+    row = cursor.fetchone()
+    conn.close()
+    return {
+        "labels": ["Keyboard", "Mouse", "Mousepad", "Headset"],
+        "values": [
+            row["keyboards"]  or 0,
+            row["mice"]       or 0,
+            row["mousepads"]  or 0,
+            row["headsets"]   or 0,
+        ],
+    }
+
+
+def get_attendance_csv_rows(start_date, end_date):
+    """Return all visit rows joined with student data for CSV export."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT
+            v.visit_id, v.check_in_time, v.day_of_week, v.week_number, v.month_str,
+            s.scanner_code, s.school_id, s.full_name, s.major, s.grade_level, s.email
+        FROM visits v
+        LEFT JOIN students s ON v.scanner_code = s.scanner_code
+        WHERE date(v.check_in_time) BETWEEN ? AND ?
+        ORDER BY v.check_in_time ASC
+        """,
+        (start_date, end_date),
+    )
+    rows = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return rows
+
+
+def get_gear_csv_rows(start_date, end_date):
+    """Return all gear checkout rows joined with student data for CSV export."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT
+            gc.checkout_id, gc.checkout_time, gc.returned_time, gc.is_returned,
+            gc.keyboard, gc.mouse, gc.mousepad, gc.headset,
+            s.scanner_code, s.school_id, s.full_name, s.major, s.grade_level, s.email
+        FROM gear_checkouts gc
+        LEFT JOIN students s ON gc.scanner_code = s.scanner_code
+        WHERE date(gc.checkout_time) BETWEEN ? AND ?
+        ORDER BY gc.checkout_time ASC
+        """,
+        (start_date, end_date),
+    )
+    rows = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return rows

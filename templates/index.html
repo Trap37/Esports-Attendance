@@ -31,6 +31,7 @@
   <nav class="tab-nav">
     <button class="tab-btn active" data-tab="attendance">Attendance</button>
     <button class="tab-btn" data-tab="gear">Gear Checkout</button>
+    <button class="tab-btn" data-tab="reports">Reports</button>
   </nav>
 
   <main class="main-content">
@@ -104,6 +105,76 @@
           </thead>
           <tbody id="checkout-tbody"></tbody>
         </table>
+      </div>
+
+    </section>
+
+    <!-- ── REPORTS TAB ───────────────────────────────────────────────── -->
+    <section id="tab-reports" class="tab-panel hidden">
+
+      <!-- Date range controls + export buttons -->
+      <div class="card reports-controls">
+        <div class="reports-controls-left">
+          <label class="reports-date-label" for="report-start">From</label>
+          <input id="report-start" type="date" class="reports-date-input">
+          <label class="reports-date-label" for="report-end">To</label>
+          <input id="report-end" type="date" class="reports-date-input">
+          <button id="btn-reports-apply" class="btn-dark-green">Apply</button>
+        </div>
+        <div class="reports-controls-right">
+          <button id="btn-export-attendance" class="btn-outline-gold">Export Attendance CSV</button>
+          <button id="btn-export-gear" class="btn-outline-gold">Export Gear CSV</button>
+        </div>
+      </div>
+
+      <!-- Summary stat cards -->
+      <div class="stat-cards-row">
+        <div class="stat-card">
+          <span class="stat-label">Total Visits</span>
+          <span id="rpt-total-visits" class="stat-number">—</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Unique Students</span>
+          <span id="rpt-unique-students" class="stat-number">—</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Avg Visits / Day</span>
+          <span id="rpt-avg-per-day" class="stat-number">—</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Total Gear Checkouts</span>
+          <span id="rpt-gear-total" class="stat-number">—</span>
+        </div>
+      </div>
+
+      <!-- Charts row 1: Attendance Over Time + Peak Days -->
+      <div class="reports-charts-row">
+        <div class="card reports-chart-card">
+          <h2 class="card-title">Attendance Over Time</h2>
+          <canvas id="chart-over-time"></canvas>
+        </div>
+        <div class="card reports-chart-card">
+          <h2 class="card-title">Peak Days of Week</h2>
+          <canvas id="chart-peak-days"></canvas>
+        </div>
+      </div>
+
+      <!-- Charts row 2: By Major + By Grade -->
+      <div class="reports-charts-row">
+        <div class="card reports-chart-card">
+          <h2 class="card-title">Attendance by Major</h2>
+          <canvas id="chart-by-major"></canvas>
+        </div>
+        <div class="card reports-chart-card">
+          <h2 class="card-title">Attendance by Grade Level</h2>
+          <canvas id="chart-by-grade"></canvas>
+        </div>
+      </div>
+
+      <!-- Chart row 3: Gear Usage (full width) -->
+      <div class="card">
+        <h2 class="card-title">Gear Usage (Checkouts in Period)</h2>
+        <canvas id="chart-gear-usage" class="reports-gear-canvas"></canvas>
       </div>
 
     </section>
@@ -198,6 +269,7 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

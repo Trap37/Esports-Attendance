@@ -1,5 +1,7 @@
-from flask import Flask, render_template, request, jsonify
-from datetime import datetime
+import csv
+import io
+from flask import Flask, render_template, request, jsonify, Response
+from datetime import datetime, date as date_type
 from database import (
     log_visit,
     get_todays_attendance,
@@ -8,6 +10,14 @@ from database import (
     return_gear,
     get_active_checkouts,
     get_gear_stats,
+    get_report_summary,
+    get_attendance_over_time,
+    get_attendance_by_major,
+    get_attendance_by_grade,
+    get_peak_days,
+    get_gear_usage_report,
+    get_attendance_csv_rows,
+    get_gear_csv_rows,
 )
 
 app = Flask(__name__)
@@ -123,6 +133,149 @@ def gear_return(checkout_id):
         return jsonify({"error": "Scan ID does not match the student who checked out this gear"}), 403
 
     return jsonify({"success": True})
+
+
+# ── Reports endpoints ─────────────────────────────────────────────────────────
+
+def _parse_date_range():
+    """
+    Extract and validate ?start=YYYY-MM-DD&end=YYYY-MM-DD query params.
+    Defaults: start = first day of current month, end = today.
+    Returns (start_str, end_str) or raises ValueError.
+    """
+    today = date_type.today()
+    default_start = today.replace(day=1).strftime("%Y-%m-%d")
+    default_end   = today.strftime("%Y-%m-%d")
+
+    start_str = request.args.get("start", default_start)
+    end_str   = request.args.get("end",   default_end)
+
+    try:
+        datetime.strptime(start_str, "%Y-%m-%d")
+        datetime.strptime(end_str,   "%Y-%m-%d")
+    except ValueError:
+        raise ValueError("Dates must be in YYYY-MM-DD format")
+
+    if start_str > end_str:
+        raise ValueError("start date must not be after end date")
+
+    return start_str, end_str
+
+
+@app.route("/api/reports/summary", methods=["GET"])
+def reports_summary():
+    try:
+        start, end = _parse_date_range()
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    return jsonify(get_report_summary(start, end))
+
+
+@app.route("/api/reports/attendance-over-time", methods=["GET"])
+def reports_attendance_over_time():
+    try:
+        start, end = _parse_date_range()
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    return jsonify(get_attendance_over_time(start, end))
+
+
+@app.route("/api/reports/by-major", methods=["GET"])
+def reports_by_major():
+    try:
+        start, end = _parse_date_range()
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    return jsonify(get_attendance_by_major(start, end))
+
+
+@app.route("/api/reports/by-grade", methods=["GET"])
+def reports_by_grade():
+    try:
+        start, end = _parse_date_range()
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    return jsonify(get_attendance_by_grade(start, end))
+
+
+@app.route("/api/reports/peak-days", methods=["GET"])
+def reports_peak_days():
+    try:
+        start, end = _parse_date_range()
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    return jsonify(get_peak_days(start, end))
+
+
+@app.route("/api/reports/gear-usage", methods=["GET"])
+def reports_gear_usage():
+    try:
+        start, end = _parse_date_range()
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    return jsonify(get_gear_usage_report(start, end))
+
+
+@app.route("/api/reports/export/attendance", methods=["GET"])
+def export_attendance_csv():
+    try:
+        start, end = _parse_date_range()
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+    rows = get_attendance_csv_rows(start, end)
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "visit_id", "check_in_time", "day_of_week", "week_number", "month_str",
+        "scanner_code", "school_id", "full_name", "major", "grade_level", "email",
+    ])
+    for row in rows:
+        writer.writerow([
+            row.get("visit_id"), row.get("check_in_time"), row.get("day_of_week"),
+            row.get("week_number"), row.get("month_str"), row.get("scanner_code"),
+            row.get("school_id"), row.get("full_name"), row.get("major"),
+            row.get("grade_level"), row.get("email"),
+        ])
+
+    filename = f"attendance_{start}_to_{end}.csv"
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@app.route("/api/reports/export/gear", methods=["GET"])
+def export_gear_csv():
+    try:
+        start, end = _parse_date_range()
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+    rows = get_gear_csv_rows(start, end)
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "checkout_id", "checkout_time", "returned_time", "is_returned",
+        "keyboard", "mouse", "mousepad", "headset",
+        "scanner_code", "school_id", "full_name", "major", "grade_level", "email",
+    ])
+    for row in rows:
+        writer.writerow([
+            row.get("checkout_id"), row.get("checkout_time"), row.get("returned_time"),
+            row.get("is_returned"), row.get("keyboard"), row.get("mouse"),
+            row.get("mousepad"), row.get("headset"), row.get("scanner_code"),
+            row.get("school_id"), row.get("full_name"), row.get("major"),
+            row.get("grade_level"), row.get("email"),
+        ])
+
+    filename = f"gear_checkouts_{start}_to_{end}.csv"
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 if __name__ == "__main__":
