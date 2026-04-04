@@ -1,20 +1,28 @@
-/* ── CSS Variables ────────────────────────────────────────────────────────── */
+/* ── CSS Variables (from CSU theme) ───────────────────────────────────────── */
 :root {
-  --green-dark:  #14532d;
-  --green-mid:   #166534;
-  --green-light: #dcfce7;
-  --gold:        #F9C901;
-  --gold-dark:   #d4a700;
-  --white:       #ffffff;
-  --bg:          #f3f4f6;
-  --text:        #111827;
-  --text-muted:  #6b7280;
-  --border:      #e5e7eb;
-  --red:         #dc2626;
-  --red-hover:   #b91c1c;
-  --shadow:      0 1px 4px rgba(0, 0, 0, 0.08);
-  --shadow-md:   0 4px 12px rgba(0, 0, 0, 0.12);
-  --radius:      8px;
+  --primary:           #00543C;
+  --primary-hover:     #004830;
+  --primary-foreground:#ffffff;
+  --secondary:         #FFB81C;
+  --secondary-hover:   #e5a518;
+  --secondary-foreground: #1a1a1a;
+  --background:        #f5f5f5;
+  --foreground:        #1a1a1a;
+  --card:              #ffffff;
+  --card-foreground:   #1a1a1a;
+  --muted:             #e5e5e5;
+  --muted-foreground:  #737373;
+  --border:            #d4d4d4;
+  --input:             #d4d4d4;
+  --input-background:  #ffffff;
+  --destructive:       #dc2626;
+  --destructive-hover: #b91c1c;
+  --destructive-foreground: #ffffff;
+  --ring:              #00543C;
+  --accent-light:      #e6f2ed;
+  --shadow:            0 1px 4px rgba(0, 0, 0, 0.08);
+  --shadow-md:         0 4px 12px rgba(0, 0, 0, 0.12);
+  --radius:            0.5rem;
 }
 
 /* ── Reset & Base ─────────────────────────────────────────────────────────── */
@@ -22,15 +30,18 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background: var(--bg);
-  color: var(--text);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+  background: var(--background);
+  color: var(--foreground);
   min-height: 100vh;
 }
 
 /* ── Header ──────────────────────────────────────────────────────────────── */
 .csu-header {
-  background: var(--green-dark);
-  color: var(--white);
+  background: var(--primary);
+  color: var(--primary-foreground);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -62,7 +73,7 @@ body {
 
 .app-subtitle {
   font-size: 0.8rem;
-  color: var(--gold);
+  color: var(--secondary);
   font-weight: 500;
 }
 
@@ -70,8 +81,9 @@ body {
 button {
   cursor: pointer;
   font-family: inherit;
-  font-size: 0.875rem;
-  font-weight: 600;
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.5;
   border-radius: var(--radius);
   padding: 0.5rem 1.1rem;
   border: 2px solid transparent;
@@ -79,53 +91,53 @@ button {
 }
 
 button:focus-visible {
-  outline: 2px solid var(--gold);
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 
 .btn-outline-gold {
   background: transparent;
-  border-color: var(--gold);
-  color: var(--gold);
+  border-color: var(--secondary);
+  color: var(--secondary);
 }
 .btn-outline-gold:hover {
-  background: var(--gold);
-  color: var(--green-dark);
+  background: var(--secondary);
+  color: var(--secondary-foreground);
 }
 
 .btn-dark-green {
-  background: var(--green-dark);
-  border-color: var(--green-dark);
-  color: var(--white);
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-foreground);
 }
 .btn-dark-green:hover {
-  background: var(--green-mid);
-  border-color: var(--green-mid);
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
 }
 
 .btn-cancel {
   background: transparent;
   border-color: var(--border);
-  color: var(--text-muted);
+  color: var(--muted-foreground);
 }
 .btn-cancel:hover {
-  background: var(--bg);
-  border-color: var(--text-muted);
+  background: var(--muted);
+  border-color: var(--muted-foreground);
 }
 
 .btn-return {
-  background: var(--red);
+  background: var(--destructive);
   border: none;
-  color: var(--white);
-  border-radius: 6px;
+  color: var(--destructive-foreground);
+  border-radius: calc(var(--radius) - 2px);
   padding: 0.3rem 0.85rem;
-  font-size: 0.8rem;
+  font-size: 0.875rem;
 }
-.btn-return:hover { background: var(--red-hover); }
+.btn-return:hover { background: var(--destructive-hover); }
 
 /* ── Tab Nav ─────────────────────────────────────────────────────────────── */
 .tab-nav {
-  background: var(--white);
+  background: var(--card);
   border-bottom: 1px solid var(--border);
   padding: 0 2rem;
   display: flex;
@@ -137,20 +149,20 @@ button:focus-visible {
   border: none;
   border-radius: 0;
   border-bottom: 3px solid transparent;
-  color: var(--text-muted);
+  color: var(--muted-foreground);
   font-weight: 500;
   padding: 0.75rem 1.25rem;
   font-size: 0.9rem;
   margin-bottom: -1px;
 }
-.tab-btn:hover { color: var(--green-dark); }
+.tab-btn:hover { color: var(--primary); }
 .tab-btn.active {
-  color: var(--green-dark);
-  border-bottom-color: var(--green-dark);
+  color: var(--primary);
+  border-bottom-color: var(--primary);
   font-weight: 600;
 }
 .tab-btn:focus-visible {
-  outline: 2px solid var(--gold);
+  outline: 2px solid var(--ring);
   outline-offset: -2px;
 }
 
@@ -170,7 +182,8 @@ button:focus-visible {
 
 /* ── Cards ───────────────────────────────────────────────────────────────── */
 .card {
-  background: var(--white);
+  background: var(--card);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 1.25rem 1.5rem;
@@ -178,8 +191,8 @@ button:focus-visible {
 
 .card-title {
   font-size: 1rem;
-  font-weight: 600;
-  color: var(--text);
+  font-weight: 500;
+  color: var(--card-foreground);
   margin-bottom: 0.875rem;
 }
 
@@ -187,20 +200,22 @@ button:focus-visible {
 .scan-input {
   width: 100%;
   padding: 0.6rem 0.875rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 0.9375rem;
+  border: 1px solid var(--input);
+  border-radius: calc(var(--radius) - 2px);
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.5;
   font-family: inherit;
-  color: var(--text);
-  background: var(--white);
+  color: var(--foreground);
+  background: var(--input-background);
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .scan-input:focus {
   outline: none;
-  border-color: var(--green-dark);
-  box-shadow: 0 0 0 3px rgba(20, 83, 45, 0.12);
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px rgba(0, 84, 60, 0.12);
 }
-.scan-input::placeholder { color: var(--text-muted); }
+.scan-input::placeholder { color: var(--muted-foreground); }
 
 /* ── Two-column layout (Scan Log + Attendance) ───────────────────────────── */
 .two-col {
@@ -227,19 +242,19 @@ button:focus-visible {
 }
 
 .log-entry-registered {
-  color: var(--green-dark);
-  background: var(--green-light);
+  color: var(--primary);
+  background: var(--accent-light);
 }
 
 .log-entry-unknown {
-  color: var(--text-muted);
+  color: var(--muted-foreground);
 }
 
 /* ── Today's Attendance ──────────────────────────────────────────────────── */
 .big-count {
   font-size: 3.5rem;
   font-weight: 700;
-  color: var(--green-dark);
+  color: var(--primary);
   line-height: 1;
   text-align: center;
   margin-top: 1.5rem;
@@ -247,7 +262,7 @@ button:focus-visible {
 
 .big-count-label {
   text-align: center;
-  color: var(--text-muted);
+  color: var(--muted-foreground);
   font-size: 0.9rem;
   margin-top: 0.375rem;
 }
@@ -262,13 +277,13 @@ button:focus-visible {
 
 .gear-title {
   font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--text);
+  font-weight: 500;
+  color: var(--foreground);
 }
 
 .gear-subtitle {
   font-size: 0.85rem;
-  color: var(--text-muted);
+  color: var(--muted-foreground);
   margin-top: 0.2rem;
 }
 
@@ -280,7 +295,8 @@ button:focus-visible {
 }
 
 .stat-card {
-  background: var(--white);
+  background: var(--card);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 1.25rem 1.5rem;
@@ -291,14 +307,14 @@ button:focus-visible {
 
 .stat-label {
   font-size: 0.825rem;
-  color: var(--text-muted);
+  color: var(--muted-foreground);
   font-weight: 500;
 }
 
 .stat-number {
   font-size: 2.5rem;
   font-weight: 700;
-  color: var(--green-dark);
+  color: var(--primary);
   line-height: 1;
 }
 
@@ -312,8 +328,8 @@ button:focus-visible {
 .checkout-table th {
   text-align: left;
   padding: 0.6rem 0.75rem;
-  font-weight: 600;
-  color: var(--text-muted);
+  font-weight: 500;
+  color: var(--muted-foreground);
   border-bottom: 1px solid var(--border);
   font-size: 0.8rem;
   text-transform: uppercase;
@@ -327,16 +343,16 @@ button:focus-visible {
 }
 
 .checkout-table tbody tr:last-child td { border-bottom: none; }
-.checkout-table tbody tr:hover { background: var(--bg); }
+.checkout-table tbody tr:hover { background: var(--background); }
 
 .empty-state {
-  color: var(--text-muted);
+  color: var(--muted-foreground);
   font-size: 0.9rem;
   text-align: center;
 }
 
 .empty-state-block {
-  color: var(--text-muted);
+  color: var(--muted-foreground);
   font-size: 0.9rem;
   text-align: center;
   padding: 2rem;
@@ -357,7 +373,7 @@ button:focus-visible {
 .modal-overlay.hidden { display: none; }
 
 .modal-box {
-  background: var(--white);
+  background: var(--card);
   border-radius: var(--radius);
   box-shadow: var(--shadow-md);
   padding: 2rem;
@@ -370,13 +386,13 @@ button:focus-visible {
 
 .modal-title {
   font-size: 1.15rem;
-  font-weight: 700;
-  color: var(--text);
+  font-weight: 500;
+  color: var(--card-foreground);
 }
 
 .modal-hint {
   font-size: 0.875rem;
-  color: var(--text-muted);
+  color: var(--muted-foreground);
 }
 
 .modal-actions {
@@ -390,8 +406,8 @@ button:focus-visible {
 .modal-error {
   background: #fef2f2;
   border: 1px solid #fca5a5;
-  color: var(--red);
-  border-radius: 6px;
+  color: var(--destructive);
+  border-radius: calc(var(--radius) - 2px);
   padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
 }
@@ -405,30 +421,33 @@ button:focus-visible {
 }
 
 .form-group label {
-  font-size: 0.85rem;
+  font-size: 1rem;
   font-weight: 500;
-  color: var(--text);
+  line-height: 1.5;
+  color: var(--foreground);
 }
 
-.required { color: var(--red); }
+.required { color: var(--destructive); }
 
 .form-group input,
 .form-group select {
   padding: 0.55rem 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 0.9rem;
+  border: 1px solid var(--input);
+  border-radius: calc(var(--radius) - 2px);
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.5;
   font-family: inherit;
-  color: var(--text);
-  background: var(--white);
+  color: var(--foreground);
+  background: var(--input-background);
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .form-group input:focus,
 .form-group select:focus {
   outline: none;
-  border-color: var(--green-dark);
-  box-shadow: 0 0 0 3px rgba(20, 83, 45, 0.12);
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px rgba(0, 84, 60, 0.12);
 }
 
 /* ── Checkboxes ──────────────────────────────────────────────────────────── */
@@ -446,17 +465,17 @@ button:focus-visible {
   cursor: pointer;
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: calc(var(--radius) - 2px);
   transition: border-color 0.15s, background 0.15s;
 }
 
 .checkbox-label:hover {
-  border-color: var(--green-dark);
-  background: var(--green-light);
+  border-color: var(--primary);
+  background: var(--accent-light);
 }
 
 .checkbox-label input[type="checkbox"] {
-  accent-color: var(--green-dark);
+  accent-color: var(--primary);
   width: 16px;
   height: 16px;
   cursor: pointer;
@@ -469,4 +488,4 @@ button:focus-visible {
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+::-webkit-scrollbar-thumb:hover { background: var(--muted-foreground); }
