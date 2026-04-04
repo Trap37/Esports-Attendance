@@ -68,6 +68,27 @@ def create_database():
                    """)
 
     # ---------------------------------------------------------
+    # TABLE 3: GEAR CHECKOUTS (The Gear Log)
+    # Tracks keyboard, mouse, mousepad, and headset checkouts.
+    # ---------------------------------------------------------
+    print("Creating table: gear_checkouts...")
+    cursor.execute("""
+                   CREATE TABLE IF NOT EXISTS gear_checkouts
+                   (
+                       checkout_id   INTEGER PRIMARY KEY AUTOINCREMENT,
+                       scanner_code  TEXT    NOT NULL,
+                       keyboard      INTEGER NOT NULL DEFAULT 0,
+                       mouse         INTEGER NOT NULL DEFAULT 0,
+                       mousepad      INTEGER NOT NULL DEFAULT 0,
+                       headset       INTEGER NOT NULL DEFAULT 0,
+                       checkout_time TEXT    NOT NULL,
+                       returned_time TEXT,
+                       is_returned   INTEGER NOT NULL DEFAULT 0,
+                       FOREIGN KEY (scanner_code) REFERENCES students (scanner_code)
+                   )
+                   """)
+
+    # ---------------------------------------------------------
     # OPTIONAL: Create a 'View' for easier reporting later
     # A View is a "Virtual Table" that joins the two tables together automatically.
     # When you query 'full_attendance_log', you get the name AND the time together.

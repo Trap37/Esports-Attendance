@@ -7,3 +7,13 @@
 !Esports Attendance Architecture.png
 !sentinel.py
 !setup_database.py
+
+# Flask web app
+!app.py
+!database.py
+!requirements.txt
+!templates/
+!templates/index.html
+!static/
+!static/style.css
+!static/app.js
