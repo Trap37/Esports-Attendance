@@ -26,6 +26,9 @@
   <nav class="tab-nav">
     <button class="tab-btn active" data-tab="attendance">Attendance</button>
     <button class="tab-btn" data-tab="gear">Gear Checkout</button>
+    <button class="tab-btn" data-tab="history">History</button>
+    <button class="tab-btn" data-tab="students">Students</button>
+    <button class="tab-btn" data-tab="reports">Reports</button>
   </nav>
 
   <main class="main-content">
@@ -101,6 +104,93 @@
         </table>
       </div>
 
+    </section>
+
+    <!-- ── HISTORY TAB ────────────────────────────────────────────────── -->
+    <section id="tab-history" class="tab-panel hidden">
+      <div class="card">
+        <h2 class="card-title">Attendance History</h2>
+        <div class="filter-row">
+          <div class="form-group">
+            <label for="hist-start">Start date</label>
+            <input id="hist-start" type="date">
+          </div>
+          <div class="form-group">
+            <label for="hist-end">End date</label>
+            <input id="hist-end" type="date">
+          </div>
+          <button id="btn-history-load" class="btn-dark-green">Load</button>
+        </div>
+        <p id="history-summary" class="modal-hint" style="margin-top:0.75rem;"></p>
+        <div id="history-empty" class="empty-state-block">Pick a date range and press Load.</div>
+        <table id="history-table" class="checkout-table hidden">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Day</th>
+              <th>Name</th>
+              <th>Scanner ID</th>
+              <th>Major</th>
+            </tr>
+          </thead>
+          <tbody id="history-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ── STUDENTS TAB ───────────────────────────────────────────────── -->
+    <section id="tab-students" class="tab-panel hidden">
+      <div class="card">
+        <h2 class="card-title">Registered Students</h2>
+        <div class="filter-row">
+          <div class="form-group" style="flex:1;">
+            <label for="students-search">Search by name, CSU ID, or scan ID</label>
+            <input id="students-search" type="text" placeholder="Search...">
+          </div>
+        </div>
+        <div id="students-empty" class="empty-state-block">No students yet.</div>
+        <table id="students-table" class="checkout-table hidden">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>CSU ID</th>
+              <th>Scan ID</th>
+              <th>Major</th>
+              <th>Year</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="students-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ── REPORTS TAB ────────────────────────────────────────────────── -->
+    <section id="tab-reports" class="tab-panel hidden">
+      <div class="card">
+        <h2 class="card-title">Export to Excel</h2>
+        <p class="modal-hint">Download attendance and/or gear checkout history for a date range as an .xlsx file.</p>
+        <div class="filter-row">
+          <div class="form-group">
+            <label for="rep-start">Start date</label>
+            <input id="rep-start" type="date">
+          </div>
+          <div class="form-group">
+            <label for="rep-end">End date</label>
+            <input id="rep-end" type="date">
+          </div>
+          <div class="form-group">
+            <label for="rep-type">What to export</label>
+            <select id="rep-type">
+              <option value="both">Both (Attendance + Gear)</option>
+              <option value="attendance">Attendance only</option>
+              <option value="gear">Gear checkouts only</option>
+            </select>
+          </div>
+          <button id="btn-export" class="btn-dark-green">Download .xlsx</button>
+        </div>
+        <p id="reports-error" class="modal-error hidden" style="margin-top:0.75rem;"></p>
+      </div>
     </section>
 
   </main>
@@ -189,6 +279,45 @@
       <div class="modal-actions">
         <button id="btn-return-submit" class="btn-dark-green">Confirm Return</button>
         <button class="btn-cancel" data-close="modal-return">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MODAL: Edit Student ────────────────────────────────────────────── -->
+  <div id="modal-edit" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal-box">
+      <h2 class="modal-title">Edit Student</h2>
+      <div class="form-group">
+        <label>Scan ID (cannot change)</label>
+        <input id="edit-scan-id" type="text" disabled>
+      </div>
+      <div class="form-group">
+        <label for="edit-name">Full Name <span class="required">*</span></label>
+        <input id="edit-name" type="text">
+      </div>
+      <div class="form-group">
+        <label for="edit-csu-id">CSU ID <span class="required">*</span></label>
+        <input id="edit-csu-id" type="text">
+      </div>
+      <div class="form-group">
+        <label for="edit-major">Major <span class="required">*</span></label>
+        <input id="edit-major" type="text">
+      </div>
+      <div class="form-group">
+        <label for="edit-grade">Year</label>
+        <select id="edit-grade">
+          <option value="">-- Select year (optional) --</option>
+          <option>Freshman</option>
+          <option>Sophomore</option>
+          <option>Junior</option>
+          <option>Senior</option>
+          <option>Graduate</option>
+        </select>
+      </div>
+      <div id="edit-error" class="modal-error hidden"></div>
+      <div class="modal-actions">
+        <button id="btn-edit-submit" class="btn-dark-green">Save</button>
+        <button class="btn-cancel" data-close="modal-edit">Cancel</button>
       </div>
     </div>
   </div>

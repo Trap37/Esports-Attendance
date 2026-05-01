@@ -2,6 +2,7 @@
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let activeReturnCheckoutId = null;
+let activeEditScannerCode = null;
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
@@ -10,6 +11,10 @@ document.addEventListener("DOMContentLoaded", () => {
   setupRegisterModal();
   setupCheckoutModal();
   setupReturnModal();
+  setupHistoryTab();
+  setupStudentsTab();
+  setupReportsTab();
+  setupEditModal();
   setupModalCloseButtons();
   setupOverlayDismiss();
   loadAttendance();
@@ -75,7 +80,11 @@ function setupTabs() {
       if (panel) panel.classList.remove("hidden");
       if (btn.dataset.tab === "gear") {
         loadGearTab();
-      } else {
+      } else if (btn.dataset.tab === "students") {
+        loadStudents();
+      } else if (btn.dataset.tab === "history") {
+        loadHistory();
+      } else if (btn.dataset.tab === "attendance") {
         focusScanInput();
       }
     });
@@ -382,6 +391,204 @@ function showError(elementId, message) {
     el.textContent = "";
     el.classList.add("hidden");
   }
+}
+
+// ── History tab ───────────────────────────────────────────────────────────────
+function setupHistoryTab() {
+  const today = new Date().toISOString().slice(0, 10);
+  const start = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+  document.getElementById("hist-start").value = start;
+  document.getElementById("hist-end").value = today;
+  document.getElementById("btn-history-load").addEventListener("click", loadHistory);
+}
+
+async function loadHistory() {
+  const start = document.getElementById("hist-start").value;
+  const end = document.getElementById("hist-end").value;
+  const summary = document.getElementById("history-summary");
+  const empty = document.getElementById("history-empty");
+  const table = document.getElementById("history-table");
+  const tbody = document.getElementById("history-tbody");
+
+  if (!start || !end) {
+    summary.textContent = "Please pick both a start and end date.";
+    empty.classList.remove("hidden");
+    table.classList.add("hidden");
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/attendance/history?start=${start}&end=${end}`);
+    const data = await res.json();
+    if (!res.ok) {
+      summary.textContent = data.error || "Failed to load history.";
+      empty.classList.remove("hidden");
+      table.classList.add("hidden");
+      return;
+    }
+    summary.textContent = `${data.count} scan(s) between ${data.start} and ${data.end}.`;
+    tbody.innerHTML = "";
+    if (data.rows.length === 0) {
+      empty.classList.remove("hidden");
+      table.classList.add("hidden");
+      return;
+    }
+    empty.classList.add("hidden");
+    table.classList.remove("hidden");
+    data.rows.forEach(r => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${escapeHtml(r.check_in_time)}</td>
+        <td>${escapeHtml(r.day_of_week || "")}</td>
+        <td>${escapeHtml(r.full_name || "(unregistered)")}</td>
+        <td>${escapeHtml(r.scanner_code)}</td>
+        <td>${escapeHtml(r.major || "")}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch {
+    summary.textContent = "Error communicating with server.";
+  }
+}
+
+// ── Students tab ──────────────────────────────────────────────────────────────
+function setupStudentsTab() {
+  const search = document.getElementById("students-search");
+  let timer;
+  search.addEventListener("input", () => {
+    clearTimeout(timer);
+    timer = setTimeout(loadStudents, 200);
+  });
+}
+
+async function loadStudents() {
+  const q = document.getElementById("students-search").value.trim();
+  const empty = document.getElementById("students-empty");
+  const table = document.getElementById("students-table");
+  const tbody = document.getElementById("students-tbody");
+
+  try {
+    const url = q ? `/api/students?q=${encodeURIComponent(q)}` : "/api/students";
+    const res = await fetch(url);
+    const data = await res.json();
+    tbody.innerHTML = "";
+    if (!data.students || data.students.length === 0) {
+      empty.textContent = q ? "No students match that search." : "No students yet.";
+      empty.classList.remove("hidden");
+      table.classList.add("hidden");
+      return;
+    }
+    empty.classList.add("hidden");
+    table.classList.remove("hidden");
+    data.students.forEach(s => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${escapeHtml(s.full_name)}</td>
+        <td>${escapeHtml(s.school_id || "")}</td>
+        <td>${escapeHtml(s.scanner_code)}</td>
+        <td>${escapeHtml(s.major || "")}</td>
+        <td>${escapeHtml(s.grade_level || "")}</td>
+        <td><button class="btn-edit" data-scan="${escapeHtml(s.scanner_code)}">Edit</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+    tbody.querySelectorAll(".btn-edit").forEach(btn => {
+      btn.addEventListener("click", () => openEditModal(btn.dataset.scan));
+    });
+  } catch {
+    empty.textContent = "Error loading students.";
+    empty.classList.remove("hidden");
+    table.classList.add("hidden");
+  }
+}
+
+// ── Edit Student modal ───────────────────────────────────────────────────────
+function setupEditModal() {
+  document.getElementById("btn-edit-submit").addEventListener("click", submitEdit);
+  ["edit-name", "edit-csu-id", "edit-major", "edit-grade"].forEach(id => {
+    document.getElementById(id).addEventListener("keydown", e => {
+      if (e.key === "Enter") submitEdit();
+    });
+  });
+}
+
+async function openEditModal(scannerCode) {
+  showError("edit-error", null);
+  try {
+    const res = await fetch(`/api/students/${encodeURIComponent(scannerCode)}`);
+    if (!res.ok) {
+      alert("Could not load student.");
+      return;
+    }
+    const s = await res.json();
+    activeEditScannerCode = s.scanner_code;
+    document.getElementById("edit-scan-id").value = s.scanner_code;
+    document.getElementById("edit-name").value = s.full_name || "";
+    document.getElementById("edit-csu-id").value = s.school_id || "";
+    document.getElementById("edit-major").value = s.major || "";
+    document.getElementById("edit-grade").value = s.grade_level || "";
+    openModal("modal-edit");
+    document.getElementById("edit-name").focus();
+  } catch {
+    alert("Error loading student.");
+  }
+}
+
+async function submitEdit() {
+  if (!activeEditScannerCode) return;
+  const body = {
+    full_name: document.getElementById("edit-name").value.trim(),
+    school_id: document.getElementById("edit-csu-id").value.trim(),
+    major:     document.getElementById("edit-major").value.trim(),
+    grade_level: document.getElementById("edit-grade").value,
+  };
+  if (!body.full_name) { showError("edit-error", "Full name is required."); return; }
+  if (!body.school_id) { showError("edit-error", "CSU ID is required."); return; }
+  if (!body.major) { showError("edit-error", "Major is required."); return; }
+
+  try {
+    const res = await fetch(`/api/students/${encodeURIComponent(activeEditScannerCode)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (res.ok) {
+      activeEditScannerCode = null;
+      closeModal("modal-edit");
+      loadStudents();
+    } else {
+      const err = await res.json();
+      showError("edit-error", err.error || "Update failed.");
+    }
+  } catch {
+    showError("edit-error", "Error communicating with server.");
+  }
+}
+
+// ── Reports tab ───────────────────────────────────────────────────────────────
+function setupReportsTab() {
+  const today = new Date().toISOString().slice(0, 10);
+  const start = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+  document.getElementById("rep-start").value = start;
+  document.getElementById("rep-end").value = today;
+  document.getElementById("btn-export").addEventListener("click", () => {
+    const s = document.getElementById("rep-start").value;
+    const e = document.getElementById("rep-end").value;
+    const t = document.getElementById("rep-type").value;
+    const err = document.getElementById("reports-error");
+    if (!s || !e) {
+      err.textContent = "Please pick both a start and end date.";
+      err.classList.remove("hidden");
+      return;
+    }
+    if (s > e) {
+      err.textContent = "Start date must be on or before end date.";
+      err.classList.remove("hidden");
+      return;
+    }
+    err.classList.add("hidden");
+    window.location.href = `/reports/export?start=${s}&end=${e}&type=${t}`;
+  });
 }
 
 function escapeHtml(str) {

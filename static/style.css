@@ -490,6 +490,27 @@ button:focus-visible {
   cursor: pointer;
 }
 
+/* ── Filter row (date pickers + button on Reports/History) ───────────────── */
+.filter-row {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.filter-row .form-group { min-width: 160px; }
+.filter-row button { align-self: flex-end; }
+
+/* ── Edit / action buttons in tables ─────────────────────────────────────── */
+.btn-edit {
+  background: var(--secondary);
+  border: none;
+  color: var(--secondary-foreground);
+  border-radius: calc(var(--radius) - 2px);
+  padding: 0.3rem 0.85rem;
+  font-size: 0.875rem;
+}
+.btn-edit:hover { background: var(--secondary-hover); }
+
 /* ── Utility ─────────────────────────────────────────────────────────────── */
 .hidden { display: none !important; }
 

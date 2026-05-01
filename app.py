@@ -1,4 +1,5 @@
-from flask import Flask, render_template, request, jsonify
+from io import BytesIO
+from flask import Flask, render_template, request, jsonify, send_file
 from datetime import datetime
 from database import (
     log_visit,
@@ -8,6 +9,11 @@ from database import (
     return_gear,
     get_active_checkouts,
     get_gear_stats,
+    get_attendance_in_range,
+    get_gear_checkouts_in_range,
+    list_students,
+    get_student,
+    update_student,
 )
 
 app = Flask(__name__)
@@ -123,6 +129,118 @@ def gear_return(checkout_id):
         return jsonify({"error": "Scan ID does not match the student who checked out this gear"}), 403
 
     return jsonify({"success": True})
+
+
+# ── Attendance history ────────────────────────────────────────────────────────
+
+def _parse_date_range():
+    start = (request.args.get("start") or "").strip()
+    end = (request.args.get("end") or "").strip()
+    try:
+        s = datetime.strptime(start, "%Y-%m-%d").date()
+        e = datetime.strptime(end, "%Y-%m-%d").date()
+    except ValueError:
+        return None, None, ("start and end must be YYYY-MM-DD", 400)
+    if s > e:
+        return None, None, ("start must be on or before end", 400)
+    return start, end, None
+
+
+@app.route("/api/attendance/history", methods=["GET"])
+def attendance_history():
+    start, end, err = _parse_date_range()
+    if err:
+        return jsonify({"error": err[0]}), err[1]
+    rows = get_attendance_in_range(start, end)
+    return jsonify({"start": start, "end": end, "count": len(rows), "rows": rows})
+
+
+# ── Students list & edit ──────────────────────────────────────────────────────
+
+@app.route("/api/students", methods=["GET"])
+def students_list():
+    q = (request.args.get("q") or "").strip() or None
+    return jsonify({"students": list_students(q)})
+
+
+@app.route("/api/students/<scanner_code>", methods=["GET"])
+def students_get(scanner_code):
+    student = get_student(scanner_code)
+    if not student:
+        return jsonify({"error": "Student not found"}), 404
+    return jsonify(student)
+
+
+@app.route("/api/students/<scanner_code>", methods=["PUT"])
+def students_update(scanner_code):
+    data = request.get_json(silent=True) or {}
+    school_id = (data.get("school_id") or "").strip()
+    full_name = (data.get("full_name") or "").strip()
+    major = (data.get("major") or "").strip()
+    grade_level = (data.get("grade_level") or "").strip()
+
+    if not school_id or not full_name or not major:
+        return jsonify({"error": "school_id, full_name, and major are required"}), 400
+
+    if not update_student(scanner_code, school_id, full_name, major, grade_level):
+        return jsonify({"error": "Student not found"}), 404
+    return jsonify({"success": True})
+
+
+# ── Reports / Excel export ────────────────────────────────────────────────────
+
+@app.route("/reports/export", methods=["GET"])
+def reports_export():
+    start, end, err = _parse_date_range()
+    if err:
+        return jsonify({"error": err[0]}), err[1]
+
+    export_type = (request.args.get("type") or "both").strip().lower()
+    if export_type not in {"attendance", "gear", "both"}:
+        return jsonify({"error": "type must be attendance, gear, or both"}), 400
+
+    from openpyxl import Workbook
+    wb = Workbook()
+    wb.remove(wb.active)
+
+    if export_type in {"attendance", "both"}:
+        ws = wb.create_sheet("Attendance")
+        ws.append(["Check-in time", "Day", "Scanner code", "School ID", "Name", "Major", "Year"])
+        for r in get_attendance_in_range(start, end):
+            ws.append([
+                r["check_in_time"],
+                r["day_of_week"],
+                r["scanner_code"],
+                r["school_id"] or "",
+                r["full_name"] or "",
+                r["major"] or "",
+                r["grade_level"] or "",
+            ])
+
+    if export_type in {"gear", "both"}:
+        ws = wb.create_sheet("GearCheckouts")
+        ws.append(["Checkout ID", "Student", "Scanner code", "Items", "Checkout time", "Returned time", "Returned"])
+        for r in get_gear_checkouts_in_range(start, end):
+            ws.append([
+                r["checkout_id"],
+                r["full_name"],
+                r["scanner_code"],
+                r["items"],
+                r["checkout_time"],
+                r["returned_time"],
+                r["is_returned"],
+            ])
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    filename = f"attendance_{start}_{end}.xlsx"
+    return send_file(
+        buf,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
 
 
 if __name__ == "__main__":

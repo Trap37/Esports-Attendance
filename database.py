@@ -200,6 +200,133 @@ def get_active_checkouts():
     return checkouts
 
 
+def get_attendance_in_range(start_date, end_date):
+    """Return per-visit rows joined with student info for [start_date, end_date] (inclusive, YYYY-MM-DD)."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT v.check_in_time,
+               v.day_of_week,
+               v.scanner_code,
+               s.school_id,
+               s.full_name,
+               s.major,
+               s.grade_level
+        FROM visits v
+        LEFT JOIN students s ON v.scanner_code = s.scanner_code
+        WHERE date(v.check_in_time) BETWEEN ? AND ?
+        ORDER BY v.check_in_time
+        """,
+        (start_date, end_date),
+    )
+    rows = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return rows
+
+
+def get_gear_checkouts_in_range(start_date, end_date):
+    """Return all gear checkouts whose checkout_time falls in [start_date, end_date]."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT gc.checkout_id,
+               gc.scanner_code,
+               s.full_name,
+               gc.keyboard, gc.mouse, gc.mousepad, gc.headset,
+               gc.checkout_time,
+               gc.returned_time,
+               gc.is_returned
+        FROM gear_checkouts gc
+        LEFT JOIN students s ON gc.scanner_code = s.scanner_code
+        WHERE date(gc.checkout_time) BETWEEN ? AND ?
+        ORDER BY gc.checkout_time
+        """,
+        (start_date, end_date),
+    )
+    rows = []
+    for r in cursor.fetchall():
+        items = []
+        if r["keyboard"]: items.append("Keyboard")
+        if r["mouse"]: items.append("Mouse")
+        if r["mousepad"]: items.append("Mousepad")
+        if r["headset"]: items.append("Headset")
+        rows.append({
+            "checkout_id": r["checkout_id"],
+            "scanner_code": r["scanner_code"],
+            "full_name": r["full_name"] or r["scanner_code"],
+            "items": ", ".join(items),
+            "checkout_time": r["checkout_time"],
+            "returned_time": r["returned_time"] or "",
+            "is_returned": "Yes" if r["is_returned"] else "No",
+        })
+    conn.close()
+    return rows
+
+
+def list_students(query=None):
+    """Return all students; if query is given, filter by name, school_id, or scanner_code (case-insensitive)."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    if query:
+        like = f"%{query}%"
+        cursor.execute(
+            """
+            SELECT scanner_code, school_id, full_name, major, grade_level
+            FROM students
+            WHERE full_name LIKE ? OR school_id LIKE ? OR scanner_code LIKE ?
+            ORDER BY full_name COLLATE NOCASE
+            """,
+            (like, like, like),
+        )
+    else:
+        cursor.execute(
+            """
+            SELECT scanner_code, school_id, full_name, major, grade_level
+            FROM students
+            ORDER BY full_name COLLATE NOCASE
+            """
+        )
+    rows = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return rows
+
+
+def get_student(scanner_code):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT scanner_code, school_id, full_name, major, grade_level FROM students WHERE scanner_code = ?",
+        (scanner_code,),
+    )
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def update_student(scanner_code, school_id, full_name, major, grade_level):
+    """Update an existing student. Returns True if the student exists (even if no values changed)."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT 1 FROM students WHERE scanner_code = ?", (scanner_code,))
+        if cursor.fetchone() is None:
+            return False
+        cursor.execute(
+            """
+            UPDATE students
+            SET school_id = ?, full_name = ?, major = ?, grade_level = ?
+            WHERE scanner_code = ?
+            """,
+            (school_id, full_name, major, grade_level or None, scanner_code),
+        )
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
 def get_gear_stats():
     """Return counts of active checkouts broken down by gear type."""
     conn = get_db_connection()
