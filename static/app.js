@@ -33,6 +33,9 @@ function anyModalOpen() {
   return [...document.querySelectorAll(".modal-overlay")].some(
     (m) => !m.classList.contains("hidden"),
   );
+  return [...document.querySelectorAll(".modal-overlay")].some(
+    (m) => !m.classList.contains("hidden"),
+  );
 }
 
 function openModal(id) {
@@ -48,16 +51,22 @@ function closeAllModals() {
   document
     .querySelectorAll(".modal-overlay")
     .forEach((m) => m.classList.add("hidden"));
+  document
+    .querySelectorAll(".modal-overlay")
+    .forEach((m) => m.classList.add("hidden"));
   focusScanInput();
 }
 
 // Close modals on Escape
+document.addEventListener("keydown", (e) => {
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closeAllModals();
 });
 
 // Close on overlay background click
 function setupOverlayDismiss() {
+  document.querySelectorAll(".modal-overlay").forEach((overlay) => {
+    overlay.addEventListener("click", (e) => {
   document.querySelectorAll(".modal-overlay").forEach((overlay) => {
     overlay.addEventListener("click", (e) => {
       if (e.target === overlay) closeModal(overlay.id);
@@ -68,6 +77,7 @@ function setupOverlayDismiss() {
 // Wire up [data-close] buttons
 function setupModalCloseButtons() {
   document.querySelectorAll("[data-close]").forEach((btn) => {
+  document.querySelectorAll("[data-close]").forEach((btn) => {
     btn.addEventListener("click", () => closeModal(btn.dataset.close));
   });
 }
@@ -75,7 +85,14 @@ function setupModalCloseButtons() {
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 function setupTabs() {
   document.querySelectorAll(".tab-btn").forEach((btn) => {
+  document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
+      document
+        .querySelectorAll(".tab-btn")
+        .forEach((b) => b.classList.remove("active"));
+      document
+        .querySelectorAll(".tab-panel")
+        .forEach((p) => p.classList.add("hidden"));
       document
         .querySelectorAll(".tab-btn")
         .forEach((b) => b.classList.remove("active"));
@@ -101,6 +118,7 @@ function setupTabs() {
 // ── Attendance scan ───────────────────────────────────────────────────────────
 function setupScanInput() {
   const input = document.getElementById("scan-input");
+  input.addEventListener("keydown", async (e) => {
   input.addEventListener("keydown", async (e) => {
     if (e.key !== "Enter") return;
     const code = input.value.trim();
@@ -162,8 +180,18 @@ function setupRegisterModal() {
   document
     .getElementById("btn-register-submit")
     .addEventListener("click", submitRegister);
+  document
+    .getElementById("btn-register-submit")
+    .addEventListener("click", submitRegister);
 
   // Allow Enter on any field to submit
+  ["reg-name", "reg-csu-id", "reg-scan-id", "reg-major", "reg-grade"].forEach(
+    (id) => {
+      document.getElementById(id).addEventListener("keydown", (e) => {
+        if (e.key === "Enter") submitRegister();
+      });
+    },
+  );
   ["reg-name", "reg-csu-id", "reg-scan-id", "reg-major", "reg-grade"].forEach(
     (id) => {
       document.getElementById(id).addEventListener("keydown", (e) => {
@@ -174,6 +202,7 @@ function setupRegisterModal() {
 }
 
 function clearRegisterForm() {
+  ["reg-name", "reg-csu-id", "reg-scan-id", "reg-major"].forEach((id) => {
   ["reg-name", "reg-csu-id", "reg-scan-id", "reg-major"].forEach((id) => {
     document.getElementById(id).value = "";
   });
@@ -188,6 +217,11 @@ async function submitRegister() {
     scan_id: document.getElementById("reg-scan-id").value.trim(),
     major: document.getElementById("reg-major").value.trim(),
     grade_level: document.getElementById("reg-grade").value,
+    full_name: document.getElementById("reg-name").value.trim(),
+    csu_id: document.getElementById("reg-csu-id").value.trim(),
+    scan_id: document.getElementById("reg-scan-id").value.trim(),
+    major: document.getElementById("reg-major").value.trim(),
+    grade_level: document.getElementById("reg-grade").value,
   };
 
   if (!body.full_name) {
@@ -195,7 +229,7 @@ async function submitRegister() {
     document.getElementById("reg-name").focus();
     return;
   }
-  if (!body.school_id) {
+  if (!body.csu_id) {
     showError("reg-error", "CSU ID is required.");
     document.getElementById("reg-csu-id").focus();
     return;
@@ -239,6 +273,7 @@ function setupCheckoutModal() {
 
   const scanInput = document.getElementById("checkout-scan-input");
   scanInput.addEventListener("keydown", async (e) => {
+  scanInput.addEventListener("keydown", async (e) => {
     if (e.key !== "Enter") return;
     await submitCheckout();
   });
@@ -246,9 +281,13 @@ function setupCheckoutModal() {
   document
     .getElementById("btn-checkout-submit")
     .addEventListener("click", submitCheckout);
+  document
+    .getElementById("btn-checkout-submit")
+    .addEventListener("click", submitCheckout);
 }
 
 function clearCheckoutForm() {
+  ["chk-keyboard", "chk-mouse", "chk-mousepad", "chk-headset"].forEach((id) => {
   ["chk-keyboard", "chk-mouse", "chk-mousepad", "chk-headset"].forEach((id) => {
     document.getElementById(id).checked = false;
   });
@@ -257,6 +296,11 @@ function clearCheckoutForm() {
 }
 
 async function submitCheckout() {
+  const keyboard = document.getElementById("chk-keyboard").checked;
+  const mouse = document.getElementById("chk-mouse").checked;
+  const mousepad = document.getElementById("chk-mousepad").checked;
+  const headset = document.getElementById("chk-headset").checked;
+  const code = document.getElementById("checkout-scan-input").value.trim();
   const keyboard = document.getElementById("chk-keyboard").checked;
   const mouse = document.getElementById("chk-mouse").checked;
   const mousepad = document.getElementById("chk-mousepad").checked;
@@ -284,6 +328,13 @@ async function submitCheckout() {
         mousepad,
         headset,
       }),
+      body: JSON.stringify({
+        scan_id: code,
+        keyboard,
+        mouse,
+        mousepad,
+        headset,
+      }),
     });
     if (res.status === 201) {
       closeModal("modal-checkout");
@@ -303,10 +354,14 @@ async function submitCheckout() {
 function setupReturnModal() {
   const scanInput = document.getElementById("return-scan-input");
   scanInput.addEventListener("keydown", async (e) => {
+  scanInput.addEventListener("keydown", async (e) => {
     if (e.key !== "Enter") return;
     await submitReturn();
   });
 
+  document
+    .getElementById("btn-return-submit")
+    .addEventListener("click", submitReturn);
   document
     .getElementById("btn-return-submit")
     .addEventListener("click", submitReturn);
@@ -334,6 +389,7 @@ async function submitReturn() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ scan_id: code }),
+      body: JSON.stringify({ scan_id: code }),
     });
     if (res.ok) {
       activeReturnCheckoutId = null;
@@ -358,10 +414,14 @@ async function loadGearTab() {
       fetch("/api/gear/checkouts"),
     ]);
     const stats = await statsRes.json();
+    const stats = await statsRes.json();
     const checkouts = await checkoutsRes.json();
 
     document.getElementById("stat-total").textContent = stats.total;
+    document.getElementById("stat-total").textContent = stats.total;
     document.getElementById("stat-keyboards").textContent = stats.keyboards;
+    document.getElementById("stat-mice").textContent = stats.mice;
+    document.getElementById("stat-other").textContent = stats.other;
     document.getElementById("stat-mice").textContent = stats.mice;
     document.getElementById("stat-other").textContent = stats.other;
 
@@ -388,6 +448,7 @@ function renderCheckoutTable(checkouts) {
   table.classList.remove("hidden");
 
   checkouts.forEach((row) => {
+  checkouts.forEach((row) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${escapeHtml(row.full_name)}</td>
@@ -407,10 +468,12 @@ function renderCheckoutTable(checkouts) {
 
   // Attach return button listeners
   tbody.querySelectorAll(".btn-return").forEach((btn) => {
+  tbody.querySelectorAll(".btn-return").forEach((btn) => {
     btn.addEventListener("click", () => {
       openReturnModal(
         parseInt(btn.dataset.checkoutId, 10),
         btn.dataset.student,
+        btn.dataset.items.split(", "),
         btn.dataset.items.split(", "),
       );
     });
@@ -439,6 +502,9 @@ function setupHistoryTab() {
   document
     .getElementById("btn-history-load")
     .addEventListener("click", loadHistory);
+  document
+    .getElementById("btn-history-load")
+    .addEventListener("click", loadHistory);
 }
 
 async function loadHistory() {
@@ -460,6 +526,9 @@ async function loadHistory() {
     const res = await fetch(
       `/api/attendance/history?start=${start}&end=${end}`,
     );
+    const res = await fetch(
+      `/api/attendance/history?start=${start}&end=${end}`,
+    );
     const data = await res.json();
     if (!res.ok) {
       summary.textContent = data.error || "Failed to load history.";
@@ -477,11 +546,13 @@ async function loadHistory() {
     empty.classList.add("hidden");
     table.classList.remove("hidden");
     data.rows.forEach((r) => {
+    data.rows.forEach((r) => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${escapeHtml(r.check_in_time)}</td>
         <td>${escapeHtml(r.day_of_week || "")}</td>
         <td>${escapeHtml(r.full_name || "(unregistered)")}</td>
+        <td>${escapeHtml(r.scan_id)}</td>
         <td>${escapeHtml(r.scan_id)}</td>
         <td>${escapeHtml(r.major || "")}</td>
       `;
@@ -512,10 +583,16 @@ async function loadStudents() {
     const url = q
       ? `/api/students?q=${encodeURIComponent(q)}`
       : "/api/students";
+    const url = q
+      ? `/api/students?q=${encodeURIComponent(q)}`
+      : "/api/students";
     const res = await fetch(url);
     const data = await res.json();
     tbody.innerHTML = "";
     if (!data.students || data.students.length === 0) {
+      empty.textContent = q
+        ? "No students match that search."
+        : "No students yet.";
       empty.textContent = q
         ? "No students match that search."
         : "No students yet.";
@@ -526,17 +603,22 @@ async function loadStudents() {
     empty.classList.add("hidden");
     table.classList.remove("hidden");
     data.students.forEach((s) => {
+    data.students.forEach((s) => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${escapeHtml(s.full_name)}</td>
         <td>${escapeHtml(s.csu_id || "")}</td>
         <td>${escapeHtml(s.scan_id)}</td>
+        <td>${escapeHtml(s.csu_id || "")}</td>
+        <td>${escapeHtml(s.scan_id)}</td>
         <td>${escapeHtml(s.major || "")}</td>
         <td>${escapeHtml(s.grade_level || "")}</td>
+        <td><button class="btn-edit" data-scan="${escapeHtml(s.scan_id)}">Edit</button></td>
         <td><button class="btn-edit" data-scan="${escapeHtml(s.scan_id)}">Edit</button></td>
       `;
       tbody.appendChild(tr);
     });
+    tbody.querySelectorAll(".btn-edit").forEach((btn) => {
     tbody.querySelectorAll(".btn-edit").forEach((btn) => {
       btn.addEventListener("click", () => openEditModal(btn.dataset.scan));
     });
@@ -549,6 +631,11 @@ async function loadStudents() {
 
 // ── Edit Student modal ───────────────────────────────────────────────────────
 function setupEditModal() {
+  document
+    .getElementById("btn-edit-submit")
+    .addEventListener("click", submitEdit);
+  ["edit-name", "edit-csu-id", "edit-major", "edit-grade"].forEach((id) => {
+    document.getElementById(id).addEventListener("keydown", (e) => {
   document
     .getElementById("btn-edit-submit")
     .addEventListener("click", submitEdit);
@@ -572,6 +659,7 @@ async function openEditModal(scannerCode) {
     document.getElementById("edit-scan-id").value = s.scan_id;
     document.getElementById("edit-name").value = s.full_name || "";
     document.getElementById("edit-csu-id").value = s.csu_id || "";
+    document.getElementById("edit-csu-id").value = s.csu_id || "";
     document.getElementById("edit-major").value = s.major || "";
     document.getElementById("edit-grade").value = s.grade_level || "";
     openModal("modal-edit");
@@ -585,6 +673,8 @@ async function submitEdit() {
   if (!activeEditScannerCode) return;
   const body = {
     full_name: document.getElementById("edit-name").value.trim(),
+    csu_id: document.getElementById("edit-csu-id").value.trim(),
+    major: document.getElementById("edit-major").value.trim(),
     csu_id: document.getElementById("edit-csu-id").value.trim(),
     major: document.getElementById("edit-major").value.trim(),
     grade_level: document.getElementById("edit-grade").value,
@@ -601,8 +691,28 @@ async function submitEdit() {
     showError("edit-error", "Major is required.");
     return;
   }
+  if (!body.full_name) {
+    showError("edit-error", "Full name is required.");
+    return;
+  }
+  if (!body.csu_id) {
+    showError("edit-error", "CSU ID is required.");
+    return;
+  }
+  if (!body.major) {
+    showError("edit-error", "Major is required.");
+    return;
+  }
 
   try {
+    const res = await fetch(
+      `/api/students/${encodeURIComponent(activeEditScannerCode)}`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      },
+    );
     const res = await fetch(
       `/api/students/${encodeURIComponent(activeEditScannerCode)}`,
       {
