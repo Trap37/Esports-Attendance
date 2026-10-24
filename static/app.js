@@ -59,14 +59,11 @@ function closeAllModals() {
 
 // Close modals on Escape
 document.addEventListener("keydown", (e) => {
-document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closeAllModals();
 });
 
 // Close on overlay background click
 function setupOverlayDismiss() {
-  document.querySelectorAll(".modal-overlay").forEach((overlay) => {
-    overlay.addEventListener("click", (e) => {
   document.querySelectorAll(".modal-overlay").forEach((overlay) => {
     overlay.addEventListener("click", (e) => {
       if (e.target === overlay) closeModal(overlay.id);
@@ -77,14 +74,12 @@ function setupOverlayDismiss() {
 // Wire up [data-close] buttons
 function setupModalCloseButtons() {
   document.querySelectorAll("[data-close]").forEach((btn) => {
-  document.querySelectorAll("[data-close]").forEach((btn) => {
     btn.addEventListener("click", () => closeModal(btn.dataset.close));
   });
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 function setupTabs() {
-  document.querySelectorAll(".tab-btn").forEach((btn) => {
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       document
@@ -118,7 +113,6 @@ function setupTabs() {
 // ── Attendance scan ───────────────────────────────────────────────────────────
 function setupScanInput() {
   const input = document.getElementById("scan-input");
-  input.addEventListener("keydown", async (e) => {
   input.addEventListener("keydown", async (e) => {
     if (e.key !== "Enter") return;
     const code = input.value.trim();
@@ -203,7 +197,6 @@ function setupRegisterModal() {
 
 function clearRegisterForm() {
   ["reg-name", "reg-csu-id", "reg-scan-id", "reg-major"].forEach((id) => {
-  ["reg-name", "reg-csu-id", "reg-scan-id", "reg-major"].forEach((id) => {
     document.getElementById(id).value = "";
   });
   document.getElementById("reg-grade").value = "";
@@ -273,7 +266,6 @@ function setupCheckoutModal() {
 
   const scanInput = document.getElementById("checkout-scan-input");
   scanInput.addEventListener("keydown", async (e) => {
-  scanInput.addEventListener("keydown", async (e) => {
     if (e.key !== "Enter") return;
     await submitCheckout();
   });
@@ -288,7 +280,6 @@ function setupCheckoutModal() {
 
 function clearCheckoutForm() {
   ["chk-keyboard", "chk-mouse", "chk-mousepad", "chk-headset"].forEach((id) => {
-  ["chk-keyboard", "chk-mouse", "chk-mousepad", "chk-headset"].forEach((id) => {
     document.getElementById(id).checked = false;
   });
   document.getElementById("checkout-scan-input").value = "";
@@ -296,11 +287,6 @@ function clearCheckoutForm() {
 }
 
 async function submitCheckout() {
-  const keyboard = document.getElementById("chk-keyboard").checked;
-  const mouse = document.getElementById("chk-mouse").checked;
-  const mousepad = document.getElementById("chk-mousepad").checked;
-  const headset = document.getElementById("chk-headset").checked;
-  const code = document.getElementById("checkout-scan-input").value.trim();
   const keyboard = document.getElementById("chk-keyboard").checked;
   const mouse = document.getElementById("chk-mouse").checked;
   const mousepad = document.getElementById("chk-mousepad").checked;
@@ -354,14 +340,9 @@ async function submitCheckout() {
 function setupReturnModal() {
   const scanInput = document.getElementById("return-scan-input");
   scanInput.addEventListener("keydown", async (e) => {
-  scanInput.addEventListener("keydown", async (e) => {
     if (e.key !== "Enter") return;
     await submitReturn();
   });
-
-  document
-    .getElementById("btn-return-submit")
-    .addEventListener("click", submitReturn);
   document
     .getElementById("btn-return-submit")
     .addEventListener("click", submitReturn);
@@ -414,7 +395,6 @@ async function loadGearTab() {
       fetch("/api/gear/checkouts"),
     ]);
     const stats = await statsRes.json();
-    const stats = await statsRes.json();
     const checkouts = await checkoutsRes.json();
 
     document.getElementById("stat-total").textContent = stats.total;
@@ -448,7 +428,6 @@ function renderCheckoutTable(checkouts) {
   table.classList.remove("hidden");
 
   checkouts.forEach((row) => {
-  checkouts.forEach((row) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${escapeHtml(row.full_name)}</td>
@@ -468,12 +447,10 @@ function renderCheckoutTable(checkouts) {
 
   // Attach return button listeners
   tbody.querySelectorAll(".btn-return").forEach((btn) => {
-  tbody.querySelectorAll(".btn-return").forEach((btn) => {
     btn.addEventListener("click", () => {
       openReturnModal(
         parseInt(btn.dataset.checkoutId, 10),
         btn.dataset.student,
-        btn.dataset.items.split(", "),
         btn.dataset.items.split(", "),
       );
     });
@@ -526,9 +503,6 @@ async function loadHistory() {
     const res = await fetch(
       `/api/attendance/history?start=${start}&end=${end}`,
     );
-    const res = await fetch(
-      `/api/attendance/history?start=${start}&end=${end}`,
-    );
     const data = await res.json();
     if (!res.ok) {
       summary.textContent = data.error || "Failed to load history.";
@@ -545,7 +519,6 @@ async function loadHistory() {
     }
     empty.classList.add("hidden");
     table.classList.remove("hidden");
-    data.rows.forEach((r) => {
     data.rows.forEach((r) => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
@@ -583,9 +556,6 @@ async function loadStudents() {
     const url = q
       ? `/api/students?q=${encodeURIComponent(q)}`
       : "/api/students";
-    const url = q
-      ? `/api/students?q=${encodeURIComponent(q)}`
-      : "/api/students";
     const res = await fetch(url);
     const data = await res.json();
     tbody.innerHTML = "";
@@ -603,7 +573,6 @@ async function loadStudents() {
     empty.classList.add("hidden");
     table.classList.remove("hidden");
     data.students.forEach((s) => {
-    data.students.forEach((s) => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${escapeHtml(s.full_name)}</td>
@@ -619,7 +588,6 @@ async function loadStudents() {
       tbody.appendChild(tr);
     });
     tbody.querySelectorAll(".btn-edit").forEach((btn) => {
-    tbody.querySelectorAll(".btn-edit").forEach((btn) => {
       btn.addEventListener("click", () => openEditModal(btn.dataset.scan));
     });
   } catch {
@@ -631,11 +599,6 @@ async function loadStudents() {
 
 // ── Edit Student modal ───────────────────────────────────────────────────────
 function setupEditModal() {
-  document
-    .getElementById("btn-edit-submit")
-    .addEventListener("click", submitEdit);
-  ["edit-name", "edit-csu-id", "edit-major", "edit-grade"].forEach((id) => {
-    document.getElementById(id).addEventListener("keydown", (e) => {
   document
     .getElementById("btn-edit-submit")
     .addEventListener("click", submitEdit);
@@ -705,14 +668,6 @@ async function submitEdit() {
   }
 
   try {
-    const res = await fetch(
-      `/api/students/${encodeURIComponent(activeEditScannerCode)}`,
-      {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      },
-    );
     const res = await fetch(
       `/api/students/${encodeURIComponent(activeEditScannerCode)}`,
       {
