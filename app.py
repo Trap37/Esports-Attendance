@@ -71,34 +71,6 @@ def scan():
     )
 
 
-@app.get('/api/students/pending')
-def pending_registration():
-    if not pending_scan:
-        return jsonify({'pending': False})
-
-    return jsonify(
-        {
-            'pending': True,
-            'scan_id': pending_scan[0],
-        }
-    )
-
-
-@app.post('/api/students/clear')
-def clear_pending_registration():
-    data = request.get_json(silent=True) or {}
-    scan_id = (data.get('scan_id') or '').strip()
-    if not scan_id:
-        return jsonify({'error': 'scan_id required'}), 400
-
-    try:
-        pending_scan.remove(scan_id)
-    except ValueError:
-        return jsonify({'error': 'Pending scan not found'}), 404
-
-    return jsonify({'success': True})
-
-
 @app.get('/api/attendance/today')
 def attendance_today():
     names = get_todays_attendance()
