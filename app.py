@@ -6,11 +6,24 @@ from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 
 from config import Config
+from forms import StudentRegistrationForm
 
-app = Flask(__name__)
-app.config.from_object(Config)
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
+db = SQLAlchemy()
+migrate = Migrate()
+
+
+def create_app(config_object=Config):
+    app = Flask(__name__)
+    app.config.from_object(Config)
+
+    db.init_app(app)
+    migrate.init_app(app, db)
+    with app.app_context():
+        import models
+    return app
+
+
+app = create_app()
 
 from database import (
     checkout_gear,
@@ -30,20 +43,19 @@ from database import (
 
 # ── Main page ─────────────────────────────────────────────────────────────────
 @app.route('/')
-@app.route('/index')
 def index():
     return render_template('index.html')
 
 
 # ── Attendance endpoints ──────────────────────────────────────────────────────
-@app.route('/api/scan', methods=['POST'])
+@app.post('/api/scan')
 def scan():
     data = request.get_json(silent=True) or {}
-    scanner_code = (data.get('scanner_code') or '').strip()
-    if not scanner_code:
-        return jsonify({'error': 'scanner_code required'}), 400
+    scan_id = (data.get('scan_id') or '').strip()
+    if not scan_id:
+        return jsonify({'error': 'scan_id required'}), 400
 
-    student_name = log_visit(scanner_code)
+    student_name = log_visit(scan_id)
     time_str = datetime.now().strftime('%H:%M:%S')
     return jsonify(
         {
@@ -54,59 +66,75 @@ def scan():
     )
 
 
-@app.route('/api/attendance/today', methods=['GET'])
+@app.get('/api/attendance/today')
 def attendance_today():
     names = get_todays_attendance()
     return jsonify({'names': names, 'count': len(names)})
 
 
-@app.route('/api/students/register', methods=['POST'])
+@app.post('/api/students/register')
 def register():
     data = request.get_json(silent=True) or {}
-    scanner_code = (data.get('scanner_code') or '').strip()
-    school_id = (data.get('school_id') or '').strip()
     full_name = (data.get('full_name') or '').strip()
+    scan_id = (data.get('scan_id') or '').strip()
+    csu_id = (data.get('csu_id') or '').strip()
     major = (data.get('major') or '').strip()
     grade_level = (data.get('grade_level') or '').strip()
 
-    if not scanner_code or not school_id or not full_name or not major:
+    form = StudentRegistrationForm(
+        meta={'csrf': False},
+        data={
+            'full_name': full_name,
+            'scan_id': scan_id,
+            'csu_id': csu_id,
+            'major': major,
+            'grade_level': grade_level,
+        },
+    )
+    if form.validate():
         return jsonify(
-            {'error': 'scanner_code, school_id, full_name, and major are required'}
+            {'error': 'Invalid registration details', 'details': form.errors}
         ), 400
 
-    success = register_student(scanner_code, school_id, full_name, major, grade_level)
+    success = register_student(
+        scan_id=scan_id,
+        csu_id=csu_id,
+        full_name=full_name,
+        major=major,
+        grade_level=grade_level,
+    )
     if success:
         return jsonify({'success': True}), 201
     return jsonify({'error': 'A student with that Scan ID already exists'}), 409
 
 
 # ── Gear checkout endpoints ───────────────────────────────────────────────────
-@app.route('/api/gear/stats', methods=['GET'])
+@app.get('/api/gear/stats')
 def gear_stats():
     return jsonify(get_gear_stats())
 
 
-@app.route('/api/gear/checkouts', methods=['GET'])
+@app.get('/api/gear/checkouts')
 def gear_checkouts():
     return jsonify({'checkouts': get_active_checkouts()})
 
 
-@app.route('/api/gear/checkout', methods=['POST'])
+@app.post('/api/gear/checkout')
 def gear_checkout():
     data = request.get_json(silent=True) or {}
-    scanner_code = (data.get('scanner_code') or '').strip()
+    scan_id = (data.get('scan_id') or '').strip()
     keyboard = bool(data.get('keyboard'))
     mouse = bool(data.get('mouse'))
     mousepad = bool(data.get('mousepad'))
     headset = bool(data.get('headset'))
 
-    if not scanner_code:
-        return jsonify({'error': 'scanner_code required'}), 400
+    if not scan_id:
+        return jsonify({'error': 'scan_id required'}), 400
     if not any([keyboard, mouse, mousepad, headset]):
         return jsonify({'error': 'Select at least one gear item'}), 400
 
     try:
-        checkout_id = checkout_gear(scanner_code, keyboard, mouse, mousepad, headset)
+        checkout_id = checkout_gear(scan_id, keyboard, mouse, mousepad, headset)
     except ValueError as e:
         return jsonify({'error': str(e)}), 409
 
@@ -116,25 +144,20 @@ def gear_checkout():
     return jsonify({'checkout_id': checkout_id}), 201
 
 
-@app.route('/api/gear/return/<int:checkout_id>', methods=['POST'])
+@app.post('/api/gear/return/<int:checkout_id>')
 def gear_return(checkout_id):
     data = request.get_json(silent=True) or {}
-    scanner_code = (data.get('scanner_code') or '').strip()
-    if not scanner_code:
-        return jsonify({'error': 'scanner_code required'}), 400
+    scan_id = (data.get('scan_id') or '').strip()
+    if not scan_id:
+        return jsonify({'error': 'scan_id required'}), 400
 
-    success = return_gear(checkout_id, scanner_code)
+    success = return_gear(checkout_id, scan_id)
     if not success:
         # Distinguish between not-found and wrong ID
-        from database import get_db_connection
+        from models import GearCheckout
 
-        conn = get_db_connection()
-        row = conn.execute(
-            'SELECT scanner_code FROM gear_checkouts WHERE checkout_id = ? AND is_returned = 0',
-            (checkout_id,),
-        ).fetchone()
-        conn.close()
-        if row is None:
+        row = db.session.get(GearCheckout, checkout_id)
+        if row is None or row.is_returned:
             return jsonify({'error': 'Checkout record not found'}), 404
         return jsonify(
             {'error': 'Scan ID does not match the student who checked out this gear'}
@@ -144,8 +167,6 @@ def gear_return(checkout_id):
 
 
 # ── Attendance history ────────────────────────────────────────────────────────
-
-
 def _parse_date_range():
     start = (request.args.get('start') or '').strip()
     end = (request.args.get('end') or '').strip()
@@ -159,7 +180,7 @@ def _parse_date_range():
     return start, end, None
 
 
-@app.route('/api/attendance/history', methods=['GET'])
+@app.get('/api/attendance/history')
 def attendance_history():
     start, end, err = _parse_date_range()
     if err:
@@ -169,42 +190,38 @@ def attendance_history():
 
 
 # ── Students list & edit ──────────────────────────────────────────────────────
-
-
-@app.route('/api/students', methods=['GET'])
+@app.get('/api/students')
 def students_list():
     q = (request.args.get('q') or '').strip() or None
     return jsonify({'students': list_students(q)})
 
 
-@app.route('/api/students/<scanner_code>', methods=['GET'])
-def students_get(scanner_code):
-    student = get_student(scanner_code)
+@app.get('/api/students/<scan_id>')
+def students_get(scan_id: str):
+    student = get_student(scan_id)
     if not student:
         return jsonify({'error': 'Student not found'}), 404
     return jsonify(student)
 
 
-@app.route('/api/students/<scanner_code>', methods=['PUT'])
+@app.put('/api/students/<scanner_code>')
 def students_update(scanner_code):
     data = request.get_json(silent=True) or {}
-    school_id = (data.get('school_id') or '').strip()
+    csu_id = (data.get('csu_id') or '').strip()
     full_name = (data.get('full_name') or '').strip()
     major = (data.get('major') or '').strip()
     grade_level = (data.get('grade_level') or '').strip()
 
-    if not school_id or not full_name or not major:
-        return jsonify({'error': 'school_id, full_name, and major are required'}), 400
+    if not csu_id or not full_name or not major:
+        return jsonify({'error': 'csu_id, full_name, and major are required'}), 400
 
-    if not update_student(scanner_code, school_id, full_name, major, grade_level):
+    if not update_student(scanner_code, csu_id, full_name, major, grade_level):
         return jsonify({'error': 'Student not found'}), 404
     return jsonify({'success': True})
 
 
 # ── Reports / Excel export ────────────────────────────────────────────────────
-
-
-@app.route('/reports/export', methods=['GET'])
+@app.get('/reports/export')
 def reports_export():
     start, end, err = _parse_date_range()
     if err:
@@ -225,7 +242,7 @@ def reports_export():
             [
                 'Check-in time',
                 'Day',
-                'Scanner code',
+                'Scan ID',
                 'School ID',
                 'Name',
                 'Major',
@@ -237,8 +254,8 @@ def reports_export():
                 [
                     r['check_in_time'],
                     r['day_of_week'],
-                    r['scanner_code'],
-                    r['school_id'] or '',
+                    r['scan_id'],
+                    r['csu_id'] or '',
                     r['full_name'] or '',
                     r['major'] or '',
                     r['grade_level'] or '',
@@ -251,7 +268,7 @@ def reports_export():
             [
                 'Checkout ID',
                 'Student',
-                'Scanner code',
+                'scan_id',
                 'Items',
                 'Checkout time',
                 'Returned time',
@@ -274,16 +291,13 @@ def reports_export():
     buf = BytesIO()
     wb.save(buf)
     buf.seek(0)
-    filename = f'attendance_{start}_{end}.xlsx'
     return send_file(
         buf,
         as_attachment=True,
-        download_name=filename,
+        download_name=f'attendance_{start}_{end}.xlsx',
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     )
 
 
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=7020)
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=7020)
