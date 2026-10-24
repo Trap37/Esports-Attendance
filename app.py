@@ -14,7 +14,7 @@ migrate = Migrate()
 
 def create_app(config_object=Config):
     app = Flask(__name__)
-    app.config.from_object(Config)
+    app.config.from_object(config_object)
 
     db.init_app(app)
     migrate.init_app(app, db)
@@ -145,7 +145,7 @@ def gear_checkout():
 
 
 @app.post('/api/gear/return/<int:checkout_id>')
-def gear_return(checkout_id):
+def gear_return(checkout_id: int):
     data = request.get_json(silent=True) or {}
     scan_id = (data.get('scan_id') or '').strip()
     if not scan_id:

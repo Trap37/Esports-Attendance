@@ -12,14 +12,13 @@ from models import GearCheckout, Student, Visit
 # ── Attendance functions ──────────────────────────────────────────────────────
 def log_visit(scan_id):
     """Insert a visit record and return the student name if found."""
-    # FIXME: Do I need UTC arg here?
     student = db.session.scalar(sa.select(Student).where(Student.scan_id == scan_id))
 
     visit = Visit(csu_id=student.csu_id)
     db.session.add(visit)
     db.session.commit()
 
-    # flash('Student registered successfully!', 'success')
+    # TODO: flash('Student registered successfully!', 'success')
     return student.full_name if student else None
 
 
@@ -160,15 +159,6 @@ def get_active_checkouts():
         }
         for r in rows
     ]
-
-
-def _date_bounds(start_date: str, end_date: str) -> tuple[datetime, datetime]:
-    """Convert inclusive YYYY-MM-DD dates to a half-open datetime range."""
-    start = datetime.fromisoformat(start_date)
-    end = datetime.fromisoformat(end_date)
-    return datetime.combine(start, time.min), datetime.combine(
-        end + timedelta(days=1), time.min
-    )
 
 
 def get_attendance_in_range(start_date, end_date):
