@@ -1,3 +1,5 @@
+import logging
+from collections import deque
 from datetime import datetime
 from io import BytesIO
 
@@ -40,6 +42,8 @@ from database import (
     update_student,
 )
 
+pending_scan: list[str] = []
+
 
 # ── Main page ─────────────────────────────────────────────────────────────────
 @app.route('/')
@@ -48,6 +52,7 @@ def index():
 
 
 # ── Attendance endpoints ──────────────────────────────────────────────────────
+# TODO: Need to implement a cooldown time so there's no issue with multiple scans too fast (1 sec)
 @app.post('/api/scan')
 def scan():
     data = request.get_json(silent=True) or {}
@@ -55,7 +60,7 @@ def scan():
     if not scan_id:
         return jsonify({'error': 'scan_id required'}), 400
 
-    student_name = log_visit(scan_id)
+    student_name = log_visit(scan_id, pending_scan)
     time_str = datetime.now().strftime('%H:%M:%S')
     return jsonify(
         {
@@ -64,6 +69,35 @@ def scan():
             'registered': student_name is not None,
         }
     )
+
+
+# TODO: Batch handle pending scans instead of one at a time
+@app.get('/api/students/pending')
+def pending_registration():
+    if not pending_scan:
+        return jsonify({'pending': False})
+
+    return jsonify(
+        {
+            'pending': True,
+            'scan_id': pending_scan[0],
+        }
+    )
+
+
+@app.post('/api/students/clear')
+def clear_pending_registration():
+    data = request.get_json(silent=True) or {}
+    scan_id = (data.get('scan_id') or '').strip()
+    if not scan_id:
+        return jsonify({'error': 'scan_id required'}), 400
+
+    try:
+        pending_scan.remove(scan_id)
+    except ValueError:
+        return jsonify({'error': 'Pending scan not found'}), 404
+
+    return jsonify({'success': True})
 
 
 @app.get('/api/attendance/today')
@@ -297,7 +331,3 @@ def reports_export():
         download_name=f'attendance_{start}_{end}.xlsx',
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     )
-
-
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=7020)

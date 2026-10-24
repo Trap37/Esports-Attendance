@@ -3,6 +3,7 @@
 // ── State ─────────────────────────────────────────────────────────────────────
 let activeReturnCheckoutId = null;
 let activeEditScannerCode = null;
+let registrationPending = false;
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
@@ -19,6 +20,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupOverlayDismiss();
   loadAttendance();
   focusScanInput();
+  setInterval(checkPendingRegistration, 1000);
 });
 
 // ── Focus management ──────────────────────────────────────────────────────────
@@ -33,9 +35,6 @@ function anyModalOpen() {
   return [...document.querySelectorAll(".modal-overlay")].some(
     (m) => !m.classList.contains("hidden"),
   );
-  return [...document.querySelectorAll(".modal-overlay")].some(
-    (m) => !m.classList.contains("hidden"),
-  );
 }
 
 function openModal(id) {
@@ -45,15 +44,22 @@ function openModal(id) {
 function closeModal(id) {
   document.getElementById(id).classList.add("hidden");
   if (!anyModalOpen()) focusScanInput();
+
+  if (id === "modal-register") {
+    registrationPending = false;
+  }
 }
 
 function closeAllModals() {
+  const registerModal = document.getElementById("modal-register");
+  const wasRegisterOpen = !registerModal.classList.contains("hidden");
+
   document
     .querySelectorAll(".modal-overlay")
     .forEach((m) => m.classList.add("hidden"));
-  document
-    .querySelectorAll(".modal-overlay")
-    .forEach((m) => m.classList.add("hidden"));
+  if (wasRegisterOpen) {
+    registrationPending = false;
+  }
   focusScanInput();
 }
 
@@ -82,12 +88,6 @@ function setupModalCloseButtons() {
 function setupTabs() {
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
-      document
-        .querySelectorAll(".tab-btn")
-        .forEach((b) => b.classList.remove("active"));
-      document
-        .querySelectorAll(".tab-panel")
-        .forEach((p) => p.classList.add("hidden"));
       document
         .querySelectorAll(".tab-btn")
         .forEach((b) => b.classList.remove("active"));
@@ -170,22 +170,11 @@ function setupRegisterModal() {
     openModal("modal-register");
     document.getElementById("reg-name").focus();
   });
-
-  document
-    .getElementById("btn-register-submit")
-    .addEventListener("click", submitRegister);
   document
     .getElementById("btn-register-submit")
     .addEventListener("click", submitRegister);
 
   // Allow Enter on any field to submit
-  ["reg-name", "reg-csu-id", "reg-scan-id", "reg-major", "reg-grade"].forEach(
-    (id) => {
-      document.getElementById(id).addEventListener("keydown", (e) => {
-        if (e.key === "Enter") submitRegister();
-      });
-    },
-  );
   ["reg-name", "reg-csu-id", "reg-scan-id", "reg-major", "reg-grade"].forEach(
     (id) => {
       document.getElementById(id).addEventListener("keydown", (e) => {
@@ -205,11 +194,6 @@ function clearRegisterForm() {
 
 async function submitRegister() {
   const body = {
-    full_name: document.getElementById("reg-name").value.trim(),
-    csu_id: document.getElementById("reg-csu-id").value.trim(),
-    scan_id: document.getElementById("reg-scan-id").value.trim(),
-    major: document.getElementById("reg-major").value.trim(),
-    grade_level: document.getElementById("reg-grade").value,
     full_name: document.getElementById("reg-name").value.trim(),
     csu_id: document.getElementById("reg-csu-id").value.trim(),
     scan_id: document.getElementById("reg-scan-id").value.trim(),
@@ -246,6 +230,7 @@ async function submitRegister() {
     });
     if (res.status === 201) {
       closeModal("modal-register");
+      registrationPending = false;
     } else {
       const err = await res.json();
       showError("reg-error", err.error || "Registration failed.");
@@ -253,6 +238,38 @@ async function submitRegister() {
     }
   } catch {
     showError("reg-error", "Error communicating with server.");
+  }
+}
+
+// ── Registration Polling ───────────────────────────────────────────────────────
+async function checkPendingRegistration() {
+  if (registrationPending) return;
+
+  try {
+    const res = await fetch("/api/students/pending");
+    if (!res.ok) return;
+
+    const data = await res.json();
+    if (!data.pending) return;
+
+    clearRegisterForm();
+
+    document.getElementById("reg-scan-id").value = data.scan_id;
+
+    openModal("modal-register");
+    document.getElementById("reg-name").focus();
+
+    const ack = await fetch("/api/students/clear", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scan_id: data.scan_id }),
+    });
+
+    if (!ack.ok) {
+      console.error("Failed to acknowledge pending registration.");
+    }
+  } catch (error) {
+    console.error("Error checking pending registrations:", error);
   }
 }
 
@@ -582,7 +599,6 @@ async function loadStudents() {
         <td>${escapeHtml(s.scan_id)}</td>
         <td>${escapeHtml(s.major || "")}</td>
         <td>${escapeHtml(s.grade_level || "")}</td>
-        <td><button class="btn-edit" data-scan="${escapeHtml(s.scan_id)}">Edit</button></td>
         <td><button class="btn-edit" data-scan="${escapeHtml(s.scan_id)}">Edit</button></td>
       `;
       tbody.appendChild(tr);

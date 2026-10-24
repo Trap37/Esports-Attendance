@@ -1,3 +1,4 @@
+from collections import deque
 from datetime import datetime, time, timedelta
 
 import sqlalchemy as sa
@@ -10,15 +11,17 @@ from models import GearCheckout, Student, Visit
 # TODO: Add type hints for all func args
 # TODO: Move a bunch of database queries from here to their respective models
 # ── Attendance functions ──────────────────────────────────────────────────────
-def log_visit(scan_id):
+def log_visit(scan_id, pending_scan: list):
     """Insert a visit record and return the student name if found."""
     student = db.session.scalar(sa.select(Student).where(Student.scan_id == scan_id))
+    if student is None:
+        pending_scan.append(scan_id)
+        return None
 
     visit = Visit(csu_id=student.csu_id)
     db.session.add(visit)
     db.session.commit()
 
-    # TODO: flash('Student registered successfully!', 'success')
     return student.full_name if student else None
 
 
@@ -161,27 +164,37 @@ def get_active_checkouts():
     ]
 
 
-def get_attendance_in_range(start_date, end_date):
-    """Return per-visit rows joined with student info for [start_date, end_date] (inclusive, YYYY-MM-DD)."""
-    # start, end = _date_bounds(start_date, end_date)
-    statement = (
-        sa.select(
-            Visit.check_in_time,
-            Visit.day_of_week,
-            Student.csu_id,
-            Student.scan_id,
-            Student.full_name,
-            Student.major,
-            Student.grade_level,
-        )
-        # .select_from(Visit)
-        .outerjoin(Student, Visit.csu_id == Student.csu_id)
-        # .where(Visit.check_in_time >= start, Visit.check_in_time < end)
-        .where(Visit.check_in_time >= start_date, Visit.check_in_time < end_date)
-        .order_by(Visit.check_in_time)
+def _date_bounds(start_date: str, end_date: str) -> tuple[datetime, datetime]:
+    """Convert inclusive YYYY-MM-DD dates to a half-open datetime range."""
+    start = datetime.fromisoformat(start_date)
+    end = datetime.fromisoformat(end_date)
+    return datetime.combine(start, time.min), datetime.combine(
+        end + timedelta(days=1), time.min
     )
 
-    return [dict(row) for row in db.session.execute(statement).mappings().all()]
+
+def get_attendance_in_range(start_date, end_date):
+    """Return per-visit rows joined with student info for [start_date, end_date] (inclusive, YYYY-MM-DD)."""
+    start, end = _date_bounds(start_date, end_date)
+    rows = db.session.execute(
+        sa.select(Visit, Student)
+        .select_from(Visit)
+        .outerjoin(Student, Visit.csu_id == Student.csu_id)
+        .where(Visit.check_in_time >= start, Visit.check_in_time < end)
+        .order_by(Visit.check_in_time)
+    ).all()
+    return [
+        {
+            'check_in_time': v.check_in_time,
+            'day_of_week': v.day_of_week,
+            'scan_id': s.scan_id,
+            'csu_id': s.csu_id,
+            'full_name': s.full_name,
+            'major': s.major,
+            'grade_level': s.grade_level,
+        }
+        for v, s in rows
+    ]
 
 
 def get_gear_checkouts_in_range(start_date: datetime, end_date: datetime):
@@ -267,25 +280,25 @@ def update_student(scan_id, csu_id, full_name, major, grade_level):
 def get_gear_stats():
     """Return counts of active checkouts broken down by gear type."""
     # TODO:: Mousepad and headset can just be separate why combined?
-    # statement = sa.select(
-    #     sa.func.count(GearCheckout.checkout_id),
-    #     sa.func.coalesce(sa.func.sum(GearCheckout.keyboard), 0),
-    #     sa.func.coalesce(sa.func.sum(GearCheckout.mouse), 0),
-    #     sa.func.coalesce(sa.func.sum(GearCheckout.mousepad + GearCheckout.headset), 0),
-    # ).where(GearCheckout.returned_time.is_(None))
-    # total, keyboards, mice, other = db.session.execute(statement).one()
-    # return {
-    #     'total': total or 0,
-    #     'keyboards': keyboards or 0,
-    #     'mice': mice or 0,
-    #     'other': other or 0,
-    # }
-    records = db.session.scalars(
-        sa.select(GearCheckout).where(GearCheckout.returned_time.is_(None))
-    ).all()
+    statement = sa.select(
+        sa.func.count(GearCheckout.checkout_id),
+        sa.func.coalesce(sa.func.sum(GearCheckout.keyboard), 0),
+        sa.func.coalesce(sa.func.sum(GearCheckout.mouse), 0),
+        sa.func.coalesce(sa.func.sum(GearCheckout.mousepad + GearCheckout.headset), 0),
+    ).where(GearCheckout.returned_time.is_(None))
+    total, keyboards, mice, other = db.session.execute(statement).one()
     return {
-        'total': len(records),
-        'keyboards': sum(bool(r.keyboard) for r in records),
-        'mice': sum(bool((r.mouse) for r in records)),
-        'other': sum(bool(r.mousepad) + bool(r.headset) for r in records),
+        'total': total or 0,
+        'keyboards': keyboards or 0,
+        'mice': mice or 0,
+        'other': other or 0,
     }
+    # records = db.session.scalars(
+    #     sa.select(GearCheckout).where(GearCheckout.returned_time.is_(None))
+    # ).all()
+    # return {
+    #     'total': len(records),
+    #     'keyboards': sum(bool(r.keyboard) for r in records),
+    #     'mice': sum(bool((r.mouse) for r in records)),
+    #     'other': sum(bool(r.mousepad) + bool(r.headset) for r in records),
+    # }
