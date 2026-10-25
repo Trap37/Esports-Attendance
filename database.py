@@ -1,5 +1,5 @@
 from collections import deque
-from datetime import datetime, time, timedelta
+from datetime import UTC, datetime, time, timedelta
 
 import sqlalchemy as sa
 from sqlalchemy.exc import IntegrityError
@@ -8,61 +8,82 @@ from app import db
 from models import GearCheckout, Student, Visit
 
 
-# TODO: Add type hints for all func args
-# TODO: Move a bunch of database queries from here to their respective models
-# XXX: Need to make sure that visit checkout times are set to EOD if left unset
-# XXX: Need to complete student gear checkout if gear not returned and visit time defaulted to EOD
-# LATER: Add popup to let user know student checking in didn't checkout last time
-# BUG: Need to make sure all 3 visit checkout time edge cases are solved
+# TODO: Add type hints for all func args.
+# TODO: Move a bunch of database queries from here to their respective models.
+# XXX: Need to complete student gear checkout if gear not returned and visit time defaulted to EOD.
+# FEATURE: Add popup to let user know student checking in didn't checkout last time.
+# BUG: Need to make sure all 3 visit checkout time edge cases are solved.
 # ── Attendance functions ──────────────────────────────────────────────────────
-def log_visit(scan_id, pending_scan: list):
+def log_visit(scan_id: str, pending_scan: list[str]):
     """Insert a visit record and return the student name if found."""
+    # TODO: Change this payload around to make more sense it's confusing.
+    # Could probably convert to class.
     payload = {
         'student_name': None,
         'checkout': False,
         'gear_checkout': False,
+        # 'status': 'student_not_found' | 'checked_in' | 'gear_return_required' | 'checked_out'
     }
 
-    student = db.session.scalar(sa.select(Student).where(Student.scan_id == scan_id))
-    if student is None:
-        pending_scan.append(scan_id)
-        return payload
-    payload['student_name'] = student.full_name
-
-    visit = db.session.scalar(
-        sa.select(Visit).where(
-            Visit.csu_id == student.csu_id,
-            Visit.checkout_time.is_(None),
+    try:
+        student = db.session.scalar(
+            sa.select(Student).where(Student.scan_id == scan_id)
         )
-    )
-    if visit is None:
-        visit = Visit(csu_id=student.csu_id)
-        db.session.add(visit)
-        payload['checkout'] = False
-    else:
-        # Need to make sure student has no gear checked out
-        gear_checkout = db.session.scalar(
-            sa.select(GearCheckout).where(
-                GearCheckout.csu_id == student.csu_id,
-                GearCheckout.returned_time.is_(None),
+        if student is None:
+            pending_scan.append(scan_id)
+            return payload
+        payload['student_name'] = student.full_name
+
+        visit = db.session.scalar(
+            sa.select(Visit).where(
+                Visit.csu_id == student.csu_id,
+                Visit.checkout_time.is_(None),
             )
         )
-        if gear_checkout:
-            # Tell user to make sure student returns equipment
-            payload['gear_checkout'] = True
-        else:
-            visit.set_checkout_time()
-            payload['checkout'] = True
-            payload['gear_checkout'] = False
 
-    # payload['checkout'] = visit.is_checked_out
-    db.session.commit()
+        if visit is None:
+            # Student is not currently checked in.
+            db.session.add(Visit(csu_id=student.csu_id))
+            payload['checkout'] = False
+        elif visit.check_in_time.date() < datetime.now(UTC).date():
+            # Close previous day's visit and start a new one.
+            # XXX: If student checked in past 5pm check out time will be set before check in time
+            visit.set_checkout_time(to_eod=True)
+            db.session.add(Visit(csu_id=student.csu_id))
+            payload['checkout'] = False
+        # BUG: Handle case where student comes twice in one day but
+        # doesn't check out on first visit.
+        # Attendance record 1 will have check_in_time but check_out_time
+        # will become second visit check_in_time.
+        # There is a partial solution commented out on Attendance model `__table_args__`
+        else:
+            # Student is checking out; Check for outstanding gear returns.
+            gear_checkout = db.session.scalar(
+                sa.select(GearCheckout).where(
+                    GearCheckout.csu_id == student.csu_id,
+                    GearCheckout.returned_time.is_(None),
+                )
+            )
+
+            if gear_checkout is not None:
+                # Tell user to make sure student returns equipment.
+                payload['gear_checkout'] = True
+            else:
+                visit.set_checkout_time()
+                payload['checkout'] = True
+                payload['gear_checkout'] = False
+
+        # payload['checkout'] = visit.is_checked_out
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
     return payload
 
 
 def get_todays_attendance() -> list:
     """Return a list of student names who scanned in today."""
-    today = datetime.now()
+    today = datetime.now(UTC)
     start_time = datetime.combine(today, time.min)
     end_time = start_time + timedelta(days=1)
 
@@ -209,8 +230,8 @@ def _date_bounds(start_date: str, end_date: str) -> tuple[datetime, datetime]:
     """Convert inclusive YYYY-MM-DD dates to a half-open datetime range."""
     start = datetime.fromisoformat(start_date)
     end = datetime.fromisoformat(end_date)
-    return datetime.combine(start, time.min), datetime.combine(
-        end + timedelta(days=1), time.min
+    return datetime.combine(start, time.min, UTC), datetime.combine(
+        end + timedelta(days=1), time.min, UTC
     )
 
 
