@@ -10,19 +10,54 @@ from models import GearCheckout, Student, Visit
 
 # TODO: Add type hints for all func args
 # TODO: Move a bunch of database queries from here to their respective models
+# XXX: Need to make sure that visit checkout times are set to EOD if left unset
+# XXX: Need to complete student gear checkout if gear not returned and visit time defaulted to EOD
+# LATER: Add popup to let user know student checking in didn't checkout last time
+# BUG: Need to make sure all 3 visit checkout time edge cases are solved
 # ── Attendance functions ──────────────────────────────────────────────────────
 def log_visit(scan_id, pending_scan: list):
     """Insert a visit record and return the student name if found."""
+    payload = {
+        'student_name': None,
+        'checkout': False,
+        'gear_checkout': False,
+    }
+
     student = db.session.scalar(sa.select(Student).where(Student.scan_id == scan_id))
     if student is None:
         pending_scan.append(scan_id)
-        return None
+        return payload
+    payload['student_name'] = student.full_name
 
-    visit = Visit(csu_id=student.csu_id)
-    db.session.add(visit)
+    visit = db.session.scalar(
+        sa.select(Visit).where(
+            Visit.csu_id == student.csu_id,
+            Visit.checkout_time.is_(None),
+        )
+    )
+    if visit is None:
+        visit = Visit(csu_id=student.csu_id)
+        db.session.add(visit)
+        payload['checkout'] = False
+    else:
+        # Need to make sure student has no gear checked out
+        gear_checkout = db.session.scalar(
+            sa.select(GearCheckout).where(
+                GearCheckout.csu_id == student.csu_id,
+                GearCheckout.returned_time.is_(None),
+            )
+        )
+        if gear_checkout:
+            # Tell user to make sure student returns equipment
+            payload['gear_checkout'] = True
+        else:
+            visit.set_checkout_time()
+            payload['checkout'] = True
+            payload['gear_checkout'] = False
+
+    # payload['checkout'] = visit.is_checked_out
     db.session.commit()
-
-    return student.full_name if student else None
+    return payload
 
 
 def get_todays_attendance() -> list:
@@ -42,11 +77,13 @@ def get_todays_attendance() -> list:
         .where(
             Visit.check_in_time >= start_time,
             Visit.check_in_time < end_time,
+            Visit.checkout_time.is_(None),
         )
         .group_by(Student.full_name)
         .order_by('first_scan')
     )
     rows = db.session.execute(statement).all()
+    print(rows)
     return [row.full_name for row in rows]
 
 
@@ -79,6 +116,9 @@ def checkout_gear(scan_id, keyboard, mouse, mousepad, headset):  # -> Any | None
     student = db.session.scalar(sa.select(Student).where(Student.scan_id == scan_id))
     if student is None:
         return None
+    # Create attendance record if student forgot to scan in
+    visit = Visit(csu_id=student.csu_id)
+    db.session.add(visit)
 
     # gear_checkout = sa.select(GearCheckout.checkout_id).where(
     #     GearCheckout.csu_id == student.csu_id, GearCheckout.is_returned.is_(False)
@@ -121,6 +161,7 @@ def return_gear(checkout_id, scan_id):
         return False
 
     checkout.set_return_time()
+    db.session.commit()
     return True
 
 
@@ -263,13 +304,15 @@ def get_student(scan_id):
     return dict(row) if row else None
 
 
-def update_student(scan_id, csu_id, full_name, major, grade_level):
+def update_student(scanner_code, scan_id, full_name, major, grade_level):
     """Update an existing student. Returns True if the student exists (even if no values changed)."""
-    student = db.session.scalar(sa.select(Student).where(Student.scan_id == scan_id))
+    student = db.session.scalar(
+        sa.select(Student).where(Student.scan_id == scanner_code)
+    )
     if student is None:
         return False
 
-    student.csu_id = csu_id
+    student.scan_id = scan_id
     student.full_name = full_name
     student.major = major
     student.grade_level = grade_level
@@ -280,25 +323,26 @@ def update_student(scan_id, csu_id, full_name, major, grade_level):
 def get_gear_stats():
     """Return counts of active checkouts broken down by gear type."""
     # TODO:: Mousepad and headset can just be separate why combined?
-    statement = sa.select(
-        sa.func.count(GearCheckout.checkout_id),
-        sa.func.coalesce(sa.func.sum(GearCheckout.keyboard), 0),
-        sa.func.coalesce(sa.func.sum(GearCheckout.mouse), 0),
-        sa.func.coalesce(sa.func.sum(GearCheckout.mousepad + GearCheckout.headset), 0),
-    ).where(GearCheckout.returned_time.is_(None))
-    total, keyboards, mice, other = db.session.execute(statement).one()
-    return {
-        'total': total or 0,
-        'keyboards': keyboards or 0,
-        'mice': mice or 0,
-        'other': other or 0,
-    }
-    # records = db.session.scalars(
-    #     sa.select(GearCheckout).where(GearCheckout.returned_time.is_(None))
-    # ).all()
+    # statement = sa.select(
+    #     sa.func.count(GearCheckout.checkout_id),
+    #     sa.func.coalesce(sa.func.sum(GearCheckout.keyboard), 0),
+    #     sa.func.coalesce(sa.func.sum(GearCheckout.mouse), 0),
+    #     sa.func.coalesce(sa.func.sum(GearCheckout.mousepad + GearCheckout.headset), 0),
+    # ).where(GearCheckout.returned_time.is_(None))
+    # total, keyboards, mice, other = db.session.execute(statement).one()
+    # # XXX: These are returning bools instead of numbers
     # return {
-    #     'total': len(records),
-    #     'keyboards': sum(bool(r.keyboard) for r in records),
-    #     'mice': sum(bool((r.mouse) for r in records)),
-    #     'other': sum(bool(r.mousepad) + bool(r.headset) for r in records),
+    #     'total': total or 0,
+    #     'keyboards': keyboards or 0,
+    #     'mice': mice or 0,
+    #     'other': other or 0,
     # }
+    records = db.session.scalars(
+        sa.select(GearCheckout).where(GearCheckout.returned_time.is_(None))
+    ).all()
+    return {
+        'total': len(records),
+        'keyboards': sum(r.keyboard for r in records),
+        'mice': sum(r.mouse for r in records),
+        'other': sum(bool(r.mousepad) + bool(r.headset) for r in records),
+    }

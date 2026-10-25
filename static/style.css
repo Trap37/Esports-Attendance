@@ -12,6 +12,7 @@
   --card-foreground:   #1a1a1a;
   --muted:             #e5e5e5;
   --muted-foreground:  #737373;
+  --muted-red:         #F2E6EB;
   --border:            #d4d4d4;
   --input:             #d4d4d4;
   --input-background:  #ffffff;
@@ -250,9 +251,14 @@ button:focus-visible {
   border-radius: 4px;
 }
 
-.log-entry-registered {
+.log-entry-check-in {
   color: var(--primary);
   background: var(--accent-light);
+}
+
+.log-entry-checkout {
+  color: var(--secondary-foreground);
+  background: var(--muted-red);
 }
 
 .log-entry-unknown {

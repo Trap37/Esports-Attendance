@@ -1,5 +1,4 @@
-import logging
-from collections import deque
+# TODO: Find a way to make the pending scan requests not show up in console
 from datetime import datetime
 from io import BytesIO
 
@@ -60,15 +59,45 @@ def scan():
     if not scan_id:
         return jsonify({'error': 'scan_id required'}), 400
 
-    student_name = log_visit(scan_id, pending_scan)
+    d = log_visit(scan_id, pending_scan)
     time_str = datetime.now().strftime('%H:%M:%S')
     return jsonify(
         {
-            'name': student_name,
+            'name': d['student_name'],
             'time': time_str,
-            'registered': student_name is not None,
+            'registered': d['student_name'] is not None,
+            'checkout': d['checkout'],
+            'gear_checkout': d['gear_checkout'],
         }
     )
+
+
+@app.get('/api/students/pending')
+def pending_registration():
+    if not pending_scan:
+        return jsonify({'pending': False})
+
+    return jsonify(
+        {
+            'pending': True,
+            'scan_id': pending_scan[0],
+        }
+    )
+
+
+@app.post('/api/students/clear')
+def clear_pending_registration():
+    data = request.get_json(silent=True) or {}
+    scan_id = (data.get('scan_id') or '').strip()
+    if not scan_id:
+        return jsonify({'error': 'scan_id required'}), 400
+
+    try:
+        pending_scan.remove(scan_id)
+    except ValueError:
+        return jsonify({'error': 'Pending scan not found'}), 404
+
+    return jsonify({'success': True})
 
 
 @app.get('/api/attendance/today')
@@ -185,6 +214,7 @@ def _parse_date_range():
     return start, end, None
 
 
+# TODO: The dates are in GMT should be in EST
 @app.get('/api/attendance/history')
 def attendance_history():
     start, end, err = _parse_date_range()
@@ -212,15 +242,15 @@ def students_get(scan_id: str):
 @app.put('/api/students/<scanner_code>')
 def students_update(scanner_code):
     data = request.get_json(silent=True) or {}
-    csu_id = (data.get('csu_id') or '').strip()
+    scan_id = (data.get('scan_id') or '').strip()
     full_name = (data.get('full_name') or '').strip()
     major = (data.get('major') or '').strip()
     grade_level = (data.get('grade_level') or '').strip()
 
-    if not csu_id or not full_name or not major:
-        return jsonify({'error': 'csu_id, full_name, and major are required'}), 400
+    if not scan_id or not full_name or not major or not grade_level:
+        return jsonify({'error': 'scan_id, full_name, and major are required'}), 400
 
-    if not update_student(scanner_code, csu_id, full_name, major, grade_level):
+    if not update_student(scanner_code, scan_id, full_name, major, grade_level):
         return jsonify({'error': 'Student not found'}), 404
     return jsonify({'success': True})
 

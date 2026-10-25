@@ -16,9 +16,8 @@ class Student(db.Model):
         unique=True,
         index=True,
     )
-    # TODO: Does full_name have to be indexable?
     full_name: so.Mapped[str] = so.mapped_column(sa.String(128), index=True)
-    # TODO: This should ideally be a list of majors
+    # FIXME: This should ideally be a list of majors
     major: so.Mapped[str] = so.mapped_column(
         sa.String(64),
     )
@@ -47,7 +46,7 @@ class Visit(db.Model):
     check_in_time: so.Mapped[datetime] = so.mapped_column(
         default=lambda: datetime.now(UTC)
     )
-    check_out_time: so.Mapped[datetime] = so.mapped_column(nullable=True)
+    checkout_time: so.Mapped[datetime] = so.mapped_column(nullable=True, default=None)
 
     student: so.Mapped[Student] = so.relationship(back_populates='visit_records')
 
@@ -62,6 +61,13 @@ class Visit(db.Model):
     @property
     def month_str(self):
         return self.check_in_time.strftime('%Y-%m')
+
+    @property
+    def is_checked_out(self) -> bool:
+        return self.checkout_time is not None
+
+    def set_checkout_time(self):
+        self.checkout_time = datetime.now(UTC)
 
     # def __repr__(self) -> str:
     #     return f'<Attendance {self.id}: Student {self.csu_id} at {self.check_in_time}>'

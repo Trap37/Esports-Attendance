@@ -135,13 +135,20 @@ function setupScanInput() {
 }
 
 function appendScanLog(data) {
-  const msg = data.registered
-    ? `[${data.time}]  Welcome, ${data.name}!`
-    : `[${data.time}]  Unknown scan (not registered)`;
-  appendScanLogRaw(msg, data.registered);
+  const msg = !data.registered
+    ? `[${data.time}]  Unknown scan (not registered)`
+    : data.checkout
+      ? `[${data.time}]  Goodbye, ${data.name}!`
+      : `[${data.time}]  Welcome, ${data.name}!`
+  appendScanLogRaw(msg, data.name, data.registered, data.checkout, data.gear_checkout);
 }
 
-function appendScanLogRaw(msg, registered) {
+function appendScanLogRaw(msg, name, registered, checkout, gear_checkout) {
+  if (gear_checkout) {
+    alert(`${name} is checking out but has not returned their gear`); 
+    return;
+  }
+
   const list = document.getElementById("scan-log-list");
   // Remove empty-state placeholder on first real entry
   const placeholder = list.querySelector(".empty-state");
@@ -149,7 +156,11 @@ function appendScanLogRaw(msg, registered) {
 
   const li = document.createElement("li");
   li.textContent = msg;
-  li.className = registered ? "log-entry-registered" : "log-entry-unknown";
+  li.className = !registered 
+    ? "log-entry-unknown"
+    : checkout
+      ? "log-entry-checkout"
+      : "log-entry-check-in";
   list.prepend(li);
 }
 
@@ -253,6 +264,7 @@ async function checkPendingRegistration() {
     const data = await res.json();
     if (!data.pending) return;
 
+    registrationPending = true;
     clearRegisterForm();
 
     document.getElementById("reg-scan-id").value = data.scan_id;
@@ -288,9 +300,6 @@ function setupCheckoutModal() {
     await submitCheckout();
   });
 
-  document
-    .getElementById("btn-checkout-submit")
-    .addEventListener("click", submitCheckout);
   document
     .getElementById("btn-checkout-submit")
     .addEventListener("click", submitCheckout);
@@ -366,6 +375,7 @@ function setupReturnModal() {
     .addEventListener("click", submitReturn);
 }
 
+// XXX: Students shouldn't have to scan id to return gear
 function openReturnModal(checkoutId, studentName, items) {
   activeReturnCheckoutId = checkoutId;
   document.getElementById("return-student-info").textContent =
@@ -445,6 +455,7 @@ function renderCheckoutTable(checkouts) {
   empty.classList.add("hidden");
   table.classList.remove("hidden");
 
+  // TODO: Add a new button to edit student's checkout to add new items
   checkouts.forEach((row) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
@@ -619,7 +630,7 @@ function setupEditModal() {
   document
     .getElementById("btn-edit-submit")
     .addEventListener("click", submitEdit);
-  ["edit-name", "edit-csu-id", "edit-major", "edit-grade"].forEach((id) => {
+  ["edit-name", "edit-scan-id", "edit-major", "edit-grade"].forEach((id) => {
     document.getElementById(id).addEventListener("keydown", (e) => {
       if (e.key === "Enter") submitEdit();
     });
@@ -636,10 +647,9 @@ async function openEditModal(scannerCode) {
     }
     const s = await res.json();
     activeEditScannerCode = s.scan_id;
-    document.getElementById("edit-scan-id").value = s.scan_id;
+    document.getElementById("edit-csu-id").value = s.csu_id;
     document.getElementById("edit-name").value = s.full_name || "";
-    document.getElementById("edit-csu-id").value = s.csu_id || "";
-    document.getElementById("edit-csu-id").value = s.csu_id || "";
+    document.getElementById("edit-scan-id").value = s.scan_id || "";
     document.getElementById("edit-major").value = s.major || "";
     document.getElementById("edit-grade").value = s.grade_level || "";
     openModal("modal-edit");
@@ -653,9 +663,7 @@ async function submitEdit() {
   if (!activeEditScannerCode) return;
   const body = {
     full_name: document.getElementById("edit-name").value.trim(),
-    csu_id: document.getElementById("edit-csu-id").value.trim(),
-    major: document.getElementById("edit-major").value.trim(),
-    csu_id: document.getElementById("edit-csu-id").value.trim(),
+    scan_id: document.getElementById("edit-scan-id").value.trim(),
     major: document.getElementById("edit-major").value.trim(),
     grade_level: document.getElementById("edit-grade").value,
   };
@@ -663,7 +671,7 @@ async function submitEdit() {
     showError("edit-error", "Full name is required.");
     return;
   }
-  if (!body.csu_id) {
+  if (!body.scan_id) {
     showError("edit-error", "CSU ID is required.");
     return;
   }
@@ -671,16 +679,8 @@ async function submitEdit() {
     showError("edit-error", "Major is required.");
     return;
   }
-  if (!body.full_name) {
-    showError("edit-error", "Full name is required.");
-    return;
-  }
-  if (!body.csu_id) {
-    showError("edit-error", "CSU ID is required.");
-    return;
-  }
-  if (!body.major) {
-    showError("edit-error", "Major is required.");
+  if (!body.grade_level) {
+    showError("edit-error", "Grade level is required.");
     return;
   }
 
