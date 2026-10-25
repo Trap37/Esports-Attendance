@@ -1,12 +1,10 @@
 from datetime import UTC, datetime, time
-from zoneinfo import ZoneInfo
 
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 
 from app import db
-
-EASTERN = ZoneInfo('America/New_York')
+from config import EASTERN
 
 
 # IDEA: Can create Mixin class that adds csu_id column as foreignkey

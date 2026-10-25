@@ -1,4 +1,4 @@
-# TODO: Find a way to make the pending scan requests not show up in console
+import logging
 from datetime import datetime
 from io import BytesIO
 
@@ -6,7 +6,7 @@ from flask import Flask, jsonify, render_template, request, send_file
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 
-from config import Config
+from config import Config, IgnorePendingRequests
 from forms import StudentRegistrationForm
 
 db = SQLAlchemy()
@@ -16,6 +16,8 @@ migrate = Migrate()
 def create_app(config_object=Config):
     app = Flask(__name__)
     app.config.from_object(config_object)
+    # app.logger.addFilter(IgnorePendingRequests())
+    logging.getLogger('werkzeug').addFilter(IgnorePendingRequests())
 
     db.init_app(app)
     migrate.init_app(app, db)
@@ -51,7 +53,7 @@ def index():
 
 
 # ── Attendance endpoints ──────────────────────────────────────────────────────
-# TODO: Need to implement a cooldown time so there's no issue with multiple scans too fast (1 sec)
+# FIXME: pending_scan should be a deque and accept more than one
 @app.post('/api/scan')
 def scan():
     data = request.get_json(silent=True) or {}

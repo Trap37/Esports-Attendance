@@ -87,7 +87,6 @@ def get_todays_attendance() -> list:
     start_time = datetime.combine(today, time.min)
     end_time = start_time + timedelta(days=1)
 
-    # XXX: I have no idea what this does
     statement = (
         sa.select(
             Student.csu_id,  # FIXME: Apparently for making sure same name people cause no issues
@@ -100,7 +99,7 @@ def get_todays_attendance() -> list:
             Visit.check_in_time < end_time,
             Visit.checkout_time.is_(None),
         )
-        .group_by(Student.full_name)
+        .group_by(Student.csu_id, Student.full_name)
         .order_by('first_scan')
     )
     rows = db.session.execute(statement).all()
@@ -212,7 +211,6 @@ def get_active_checkouts():
         .where(GearCheckout.returned_time.is_(None))
         .order_by(GearCheckout.checkout_time)
     ).all()
-    # TODO: Why can full_name be the name or scan_id
     # TODO: Make sure that it's ok I changed from scan_id to csu_id for missing name
     return [
         {
