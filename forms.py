@@ -28,8 +28,8 @@ class StudentRegistrationForm(FlaskForm):
         'Year',
         description='Freshman, Sophomore, etc.',
         choices=[
-            # TODO: Want this to pop up first but not be valid option
-            # ('', '-- Select year (optional) --'),
+            # XXX: Want this to pop up first but not be valid option.
+            ('', '-- Select year (optional) --'),
             ('Freshman', 'Freshman'),
             ('Sophomore', 'Sophomore'),
             ('Junior', 'Junior'),

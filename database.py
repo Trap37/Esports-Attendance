@@ -8,8 +8,9 @@ from app import db
 from models import GearCheckout, Student, Visit
 
 
-# TODO: Add type hints for all func args.
+# LATER: Add type hints for all func args.
 # TODO: Move a bunch of database queries from here to their respective models.
+# TODO: Refactor this partly directly into app.py file.
 # XXX: Need to complete student gear checkout if gear not returned and visit time defaulted to EOD.
 # FEATURE: Add popup to let user know student checking in didn't checkout last time.
 # BUG: Need to make sure all 3 visit checkout time edge cases are solved.
@@ -47,11 +48,11 @@ def log_visit(scan_id: str, pending_scans: list[str]):
             payload['checkout'] = False
         elif visit.check_in_time.date() < datetime.now(UTC).date():
             # Close previous day's visit and start a new one.
-            # XXX: If student checked in past 5pm check out time will be set before check in time
+            # BUG: If student checked in past 5pm check out time will be set before check in time.
             visit.set_checkout_time(to_eod=True)
             db.session.add(Visit(csu_id=student.csu_id))
             payload['checkout'] = False
-        # BUG: Handle case where student comes twice in one day but
+        # BUG: Handle case where student comes twice in one day but.
         # doesn't check out on first visit.
         # Attendance record 1 will have check_in_time but check_out_time
         # will become second visit check_in_time.
@@ -89,7 +90,7 @@ def get_todays_attendance() -> list:
 
     statement = (
         sa.select(
-            Student.csu_id,  # FIXME: Apparently for making sure same name people cause no issues
+            Student.csu_id,
             Student.full_name,
             sa.func.min(Visit.check_in_time).label('first_scan'),
         )
@@ -125,7 +126,9 @@ def register_student(scan_id, csu_id, full_name, major, grade_level):
 
 
 # ── Gear checkout functions ───────────────────────────────────────────────────
-# IDEA: Can add alert if student did not return gear last time
+# TICKET: Add an alert if student did not return gear last time.
+# TICKET: Controllers can also be checked out.
+# TICKET: Add some additional options box for checking out additional, unknown things.
 def checkout_gear(scan_id, keyboard, mouse, mousepad, headset):  # -> Any | None:
     """
     Create a new gear checkout record.
@@ -149,8 +152,6 @@ def checkout_gear(scan_id, keyboard, mouse, mousepad, headset):  # -> Any | None
             GearCheckout.returned_time.is_(None),
         )
     )
-    # XXX: This should just add to student's current checkout unless items are duplicates
-    # Such as having checked out headphones and trying to checkout a second
     if active is not None:
         raise ValueError('Student already has an active checkout')
 
@@ -211,12 +212,14 @@ def get_active_checkouts():
         .where(GearCheckout.returned_time.is_(None))
         .order_by(GearCheckout.checkout_time)
     ).all()
-    # TODO: Make sure that it's ok I changed from scan_id to csu_id for missing name
     return [
         {
+            # BUG: Why would student not have a full name?
             'checkout_id': r.checkout_id,
             'scan_id': r.student.scan_id,
-            'full_name': r.student.full_name if r.student.full_name else r.csu_id,
+            'full_name': r.student.full_name,
+            # if r.student.full_name
+            # else r.student.scan_id,
             'items': _gear_items(r),
             'checkout_time': r.checkout_time,
         }
@@ -341,7 +344,7 @@ def update_student(scanner_code, scan_id, full_name, major, grade_level):
 
 def get_gear_stats():
     """Return counts of active checkouts broken down by gear type."""
-    # TODO:: Mousepad and headset can just be separate why combined?
+    # FIXME:: Mousepad and headset can just be separate why combined?
     # statement = sa.select(
     #     sa.func.count(GearCheckout.checkout_id),
     #     sa.func.coalesce(sa.func.sum(GearCheckout.keyboard), 0),

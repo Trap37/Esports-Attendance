@@ -139,13 +139,19 @@ function appendScanLog(data) {
     ? `[${data.time}]  Unknown scan (not registered)`
     : data.checkout
       ? `[${data.time}]  Goodbye, ${data.name}!`
-      : `[${data.time}]  Welcome, ${data.name}!`
-  appendScanLogRaw(msg, data.name, data.registered, data.checkout, data.gear_checkout);
+      : `[${data.time}]  Welcome, ${data.name}!`;
+  appendScanLogRaw(
+    msg,
+    data.name,
+    data.registered,
+    data.checkout,
+    data.gear_checkout,
+  );
 }
 
 function appendScanLogRaw(msg, name, registered, checkout, gear_checkout) {
   if (gear_checkout) {
-    alert(`${name} is checking out but has not returned their gear`); 
+    alert(`${name} is checking out but has not returned their gear`);
     return;
   }
 
@@ -156,7 +162,7 @@ function appendScanLogRaw(msg, name, registered, checkout, gear_checkout) {
 
   const li = document.createElement("li");
   li.textContent = msg;
-  li.className = !registered 
+  li.className = !registered
     ? "log-entry-unknown"
     : checkout
       ? "log-entry-checkout"
@@ -164,7 +170,7 @@ function appendScanLogRaw(msg, name, registered, checkout, gear_checkout) {
   list.prepend(li);
 }
 
-// TODO: Load all logs in scan log box on refresh so it doesn't say no scans
+// TODO: Load all logs in scan log box on refresh so it doesn't say no scans.
 async function loadAttendance() {
   try {
     const res = await fetch("/api/attendance/today");
@@ -375,7 +381,7 @@ function setupReturnModal() {
     .addEventListener("click", submitReturn);
 }
 
-// XXX: Students shouldn't have to scan id to return gear
+// XXX: Students shouldn't have to scan id to return gear.
 function openReturnModal(checkoutId, studentName, items) {
   activeReturnCheckoutId = checkoutId;
   document.getElementById("return-student-info").textContent =
@@ -455,7 +461,8 @@ function renderCheckoutTable(checkouts) {
   empty.classList.add("hidden");
   table.classList.remove("hidden");
 
-  // TODO: Add a new button to edit student's checkout to add new items
+  // XXX: Add a new button to edit student's checkout to add new items.
+  // Could just popup the gear checkout modal with the items already checkout out checked
   checkouts.forEach((row) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `

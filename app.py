@@ -1,3 +1,4 @@
+# XXX: Refactor entire sever layout to subfolder src layout.
 import logging
 from datetime import datetime
 from io import BytesIO
@@ -149,6 +150,7 @@ def gear_stats():
     return jsonify(get_gear_stats())
 
 
+# FIXME: The dates are in GMT should be in EST.
 @app.get('/api/gear/checkouts')
 def gear_checkouts():
     return jsonify({'checkouts': get_active_checkouts()})
@@ -215,7 +217,7 @@ def _parse_date_range():
     return start, end, None
 
 
-# FIXME: The dates are in GMT should be in EST
+# FIXME: The dates are in GMT should be in EST.
 @app.get('/api/attendance/history')
 def attendance_history():
     start, end, err = _parse_date_range()

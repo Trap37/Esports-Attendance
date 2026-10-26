@@ -18,11 +18,11 @@ class Student(db.Model):
         unique=True,
     )
     full_name: so.Mapped[str] = so.mapped_column(sa.String(128), index=True)
-    # FIXME: This should ideally be a list of majors
+    # FIXME: This should ideally be a list of majors.
     major: so.Mapped[str] = so.mapped_column(
         sa.String(64),
     )
-    # XXX: Student grade level is no longer optional
+    # XXX: Student grade level is no longer optional.
     grade_level: so.Mapped[str] = so.mapped_column(sa.String(16))
 
     visit_records: so.WriteOnlyMapped['Visit'] = so.relationship(
