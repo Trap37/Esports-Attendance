@@ -1,6 +1,6 @@
 # XXX: Refactor entire sever layout to subfolder src layout.
 import logging
-from datetime import datetime
+from datetime import date, datetime
 from io import BytesIO
 
 from flask import Flask, jsonify, render_template, request, send_file
@@ -207,24 +207,37 @@ def gear_return(checkout_id: int):
 def _parse_date_range():
     start = (request.args.get('start') or '').strip()
     end = (request.args.get('end') or '').strip()
+
     try:
-        s = datetime.strptime(start, '%Y-%m-%d').date()
-        e = datetime.strptime(end, '%Y-%m-%d').date()
+        start_date = date.fromisoformat(start)
+        end_date = date.fromisoformat(end)
     except ValueError:
         return None, None, ('start and end must be YYYY-MM-DD', 400)
-    if s > e:
+
+    if start_date.isoformat() != start or end_date.isoformat() != end:
+        return None, None, ('start and end must be YYYY-MM-DD', 400)
+    if start_date > end_date:
         return None, None, ('start must be on or before end', 400)
-    return start, end, None
+
+    return start_date, end_date, None
 
 
-# FIXME: The dates are in GMT should be in EST.
 @app.get('/api/attendance/history')
 def attendance_history():
     start, end, err = _parse_date_range()
+
     if err:
         return jsonify({'error': err[0]}), err[1]
+
     rows = get_attendance_in_range(start, end)
-    return jsonify({'start': start, 'end': end, 'count': len(rows), 'rows': rows})
+    return jsonify(
+        {
+            'start': start.isoformat(),
+            'end': end.isoformat(),
+            'count': len(rows),
+            'rows': rows,
+        }
+    )
 
 
 # ── Students list & edit ──────────────────────────────────────────────────────

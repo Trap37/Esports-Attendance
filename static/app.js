@@ -562,7 +562,6 @@ async function loadHistory() {
         <td>${escapeHtml(r.day_of_week || "")}</td>
         <td>${escapeHtml(r.full_name || "(unregistered)")}</td>
         <td>${escapeHtml(r.scan_id)}</td>
-        <td>${escapeHtml(r.scan_id)}</td>
         <td>${escapeHtml(r.major || "")}</td>
       `;
       tbody.appendChild(tr);

@@ -5,7 +5,8 @@ import sqlalchemy as sa
 from sqlalchemy.exc import IntegrityError
 
 from app import db
-from models import GearCheckout, Student, Visit
+from config import EASTERN
+from models import GearCheckout, Student, Visit, _convert_to_eastern
 
 
 # LATER: Add type hints for all func args.
@@ -104,7 +105,6 @@ def get_todays_attendance() -> list:
         .order_by('first_scan')
     )
     rows = db.session.execute(statement).all()
-    print(rows)
     return [row.full_name for row in rows]
 
 
@@ -227,18 +227,16 @@ def get_active_checkouts():
     ]
 
 
-def _date_bounds(start_date: str, end_date: str) -> tuple[datetime, datetime]:
-    """Convert inclusive YYYY-MM-DD dates to a half-open datetime range."""
-    start = datetime.fromisoformat(start_date)
-    end = datetime.fromisoformat(end_date)
-    return datetime.combine(start, time.min, UTC), datetime.combine(
-        end + timedelta(days=1), time.min, UTC
-    )
-
-
 def get_attendance_in_range(start_date, end_date):
     """Return per-visit rows joined with student info for [start_date, end_date] (inclusive, YYYY-MM-DD)."""
-    start, end = _date_bounds(start_date, end_date)
+    # start, end = _date_bounds(start_date, end_date)
+    start = datetime.combine(start_date, time.min, EASTERN).astimezone(UTC)
+    end = datetime.combine(
+        end_date + timedelta(days=1),
+        time.min,
+        EASTERN,
+    ).astimezone(UTC)
+
     rows = db.session.execute(
         sa.select(Visit, Student)
         .select_from(Visit)
@@ -248,7 +246,9 @@ def get_attendance_in_range(start_date, end_date):
     ).all()
     return [
         {
-            'check_in_time': v.check_in_time,
+            'check_in_time': _convert_to_eastern(v.check_in_time).strftime(
+                '%Y-%m-%d %I:%M %p'
+            ),
             'day_of_week': v.day_of_week,
             'scan_id': s.scan_id,
             'csu_id': s.csu_id,
