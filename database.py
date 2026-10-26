@@ -60,6 +60,7 @@ def log_visit(scan_id: str, pending_scans: list[str]):
         # There is a partial solution commented out on Attendance model `__table_args__`
         else:
             # Student is checking out; Check for outstanding gear returns.
+            payload['checkout'] = True
             gear_checkout = db.session.scalar(
                 sa.select(GearCheckout).where(
                     GearCheckout.csu_id == student.csu_id,
@@ -72,7 +73,6 @@ def log_visit(scan_id: str, pending_scans: list[str]):
                 payload['gear_checkout'] = True
             else:
                 visit.set_checkout_time()
-                payload['checkout'] = True
                 payload['gear_checkout'] = False
 
         # payload['checkout'] = visit.is_checked_out

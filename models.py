@@ -135,14 +135,14 @@ class GearCheckout(db.Model):
         return self.returned_time is not None
 
     # TODO: This is duplicate method from `Visit`. Should have mixin class
-    def set_checkout_time(self, *, to_eod=False):
+    def set_return_time(self, *, to_eod=False):
         if to_eod:
-            local_date = _convert_to_eastern(self.check_in_time).date()
+            local_date = _convert_to_eastern(self.returned_time).date()
 
-            self.checkout_time = datetime.datetime.combine(
+            self.returned_time = datetime.datetime.combine(
                 local_date,
                 datetime.time(17, 0),
                 tzinfo=EASTERN,
             ).astimezone(datetime.UTC)
         else:
-            self.checkout_time = datetime.datetime.now(datetime.UTC)
+            self.returned_time = datetime.datetime.now(datetime.UTC)

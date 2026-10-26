@@ -404,7 +404,6 @@ async function submitReturn() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ scan_id: code }),
-      body: JSON.stringify({ scan_id: code }),
     });
     if (res.ok) {
       activeReturnCheckoutId = null;
