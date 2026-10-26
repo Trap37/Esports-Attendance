@@ -230,6 +230,14 @@ def attendance_history():
         return jsonify({'error': err[0]}), err[1]
 
     rows = get_attendance_in_range(start, end)
+    print(
+        {
+            'start': start.isoformat(),
+            'end': end.isoformat(),
+            'count': len(rows),
+            'rows': rows,
+        }
+    )
     return jsonify(
         {
             'start': start.isoformat(),
