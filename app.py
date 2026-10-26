@@ -47,6 +47,10 @@ from database import (
 pending_scans: list[str] = []
 
 
+# TODO: Define DTOs for API inputs where validation is inconsistent. Use Pydantic
+# Start with student registration and gear checkout.
+# Reuse existing Flask-WTF validation where appropriate;
+# don't duplicate it just to follow a pattern.
 # ── Main page ─────────────────────────────────────────────────────────────────
 @app.route('/')
 def index():
@@ -127,6 +131,8 @@ def register():
             'grade_level': grade_level,
         },
     )
+    # XXX: Is this throwing an error on correct validation?
+    # It is working correctly though I think? Registration has worked fine
     if form.validate():
         return jsonify(
             {'error': 'Invalid registration details', 'details': form.errors}

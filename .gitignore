@@ -219,5 +219,8 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-#Database
+# Database
 *.db
+
+# Extra
+gitignored_*

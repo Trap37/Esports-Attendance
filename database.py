@@ -1,4 +1,3 @@
-from collections import deque
 from datetime import UTC, datetime, time, timedelta
 
 import sqlalchemy as sa
@@ -19,7 +18,9 @@ from models import GearCheckout, Student, Visit, _to_eastern_datetime
 def log_visit(scan_id: str, pending_scans: list[str]):
     """Insert a visit record and return the student name if found."""
     # TODO: Change this payload around to make more sense it's confusing.
-    # Could probably convert to class.
+    # Make it a dataclass dto.
+    # @dataclass(frozen=True)
+    # class ScanResultDTO:
     payload = {
         'student_name': None,
         'checkout': False,
@@ -227,6 +228,7 @@ def get_active_checkouts():
     ]
 
 
+# TODO: Consider DTOs for attendance and gear reports
 def get_attendance_in_range(start_date, end_date):
     """Return per-visit rows joined with student info for [start_date, end_date] (inclusive, YYYY-MM-DD)."""
     # start, end = _date_bounds(start_date, end_date)
@@ -342,7 +344,9 @@ def update_student(scanner_code, scan_id, full_name, major, grade_level):
 
 def get_gear_stats():
     """Return counts of active checkouts broken down by gear type."""
-    # FIXME:: Mousepad and headset can just be separate why combined?
+    # TICKET:: Mousepad and headset can just be separate why combined?
+    # FEATURE: Can have a csv or json file that holds data about every piece of equipment
+    # FEATURE: Can add add total number of equipment items here
     # statement = sa.select(
     #     sa.func.count(GearCheckout.checkout_id),
     #     sa.func.coalesce(sa.func.sum(GearCheckout.keyboard), 0),
