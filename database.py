@@ -14,7 +14,7 @@ from models import GearCheckout, Student, Visit
 # FEATURE: Add popup to let user know student checking in didn't checkout last time.
 # BUG: Need to make sure all 3 visit checkout time edge cases are solved.
 # ── Attendance functions ──────────────────────────────────────────────────────
-def log_visit(scan_id: str, pending_scan: list[str]):
+def log_visit(scan_id: str, pending_scans: list[str]):
     """Insert a visit record and return the student name if found."""
     # TODO: Change this payload around to make more sense it's confusing.
     # Could probably convert to class.
@@ -30,7 +30,7 @@ def log_visit(scan_id: str, pending_scan: list[str]):
             sa.select(Student).where(Student.scan_id == scan_id)
         )
         if student is None:
-            pending_scan.append(scan_id)
+            pending_scans.append(scan_id)
             return payload
         payload['student_name'] = student.full_name
 

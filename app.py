@@ -43,7 +43,7 @@ from database import (
     update_student,
 )
 
-pending_scan: list[str] = []
+pending_scans: list[str] = []
 
 
 # ── Main page ─────────────────────────────────────────────────────────────────
@@ -53,7 +53,6 @@ def index():
 
 
 # ── Attendance endpoints ──────────────────────────────────────────────────────
-# FIXME: pending_scan should be a deque and accept more than one
 @app.post('/api/scan')
 def scan():
     data = request.get_json(silent=True) or {}
@@ -61,7 +60,7 @@ def scan():
     if not scan_id:
         return jsonify({'error': 'scan_id required'}), 400
 
-    d = log_visit(scan_id, pending_scan)
+    d = log_visit(scan_id, pending_scans)
     time_str = datetime.now().strftime('%H:%M:%S')
     return jsonify(
         {
@@ -76,13 +75,13 @@ def scan():
 
 @app.get('/api/students/pending')
 def pending_registration():
-    if not pending_scan:
+    if not pending_scans:
         return jsonify({'pending': False})
 
     return jsonify(
         {
             'pending': True,
-            'scan_id': pending_scan[0],
+            'scan_id': pending_scans[0],
         }
     )
 
@@ -95,7 +94,7 @@ def clear_pending_registration():
         return jsonify({'error': 'scan_id required'}), 400
 
     try:
-        pending_scan.remove(scan_id)
+        pending_scans.remove(scan_id)
     except ValueError:
         return jsonify({'error': 'Pending scan not found'}), 404
 
@@ -216,7 +215,7 @@ def _parse_date_range():
     return start, end, None
 
 
-# TODO: The dates are in GMT should be in EST
+# FIXME: The dates are in GMT should be in EST
 @app.get('/api/attendance/history')
 def attendance_history():
     start, end, err = _parse_date_range()
