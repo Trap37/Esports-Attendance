@@ -1,10 +1,17 @@
-from datetime import UTC, datetime, time
+import datetime
 
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 
 from app import db
 from config import EASTERN
+
+
+def _convert_to_eastern(value: datetime.datetime):
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=datetime.UTC)
+
+    return value.astimezone(EASTERN)
 
 
 # IDEA: Can create Mixin class that adds csu_id column as foreignkey
@@ -52,24 +59,33 @@ class Visit(db.Model):
         sa.ForeignKey(Student.csu_id),
         index=True,
     )
-    check_in_time: so.Mapped[datetime] = so.mapped_column(
-        default=lambda: datetime.now(UTC)
+    check_in_time: so.Mapped[datetime.datetime] = so.mapped_column(
+        default=lambda: datetime.datetime.now(datetime.UTC)
     )
-    checkout_time: so.Mapped[datetime] = so.mapped_column(nullable=True, default=None)
+    checkout_time: so.Mapped[datetime.datetime] = so.mapped_column(
+        nullable=True, default=None
+    )
 
     student: so.Mapped[Student] = so.relationship(back_populates='visit_records')
 
+    @staticmethod
+    def _convert_to_eastern(value: datetime.datetime):
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=datetime.UTC)
+
+        return value.astimezone(EASTERN)
+
     @property
     def day_of_week(self):
-        return self.check_in_time.strftime('%A')
+        return _convert_to_eastern(self.check_in_time).strftime('%A')
 
     @property
     def week_number(self):
-        return int(self.check_in_time.strftime('%W'))
+        return int(_convert_to_eastern(self.check_in_time).strftime('%W'))
 
     @property
     def month_str(self):
-        return self.check_in_time.strftime('%Y-%m')
+        return _convert_to_eastern(self.check_in_time).strftime('%Y-%m')
 
     @property
     def is_checked_out(self) -> bool:
@@ -77,21 +93,15 @@ class Visit(db.Model):
 
     def set_checkout_time(self, *, to_eod=False):
         if to_eod:
-            check_in = self.check_in_time
+            local_date = _convert_to_eastern(self.check_in_time).date()
 
-            # SQLite may return a naive datetime; treat it as UTC.
-            if check_in.tzinfo is None:
-                check_in = check_in.replace(tzinfo=UTC)
-
-            local_date = check_in.astimezone(EASTERN).date()
-
-            self.checkout_time = datetime.combine(
+            self.checkout_time = datetime.datetime.combine(
                 local_date,
-                time(17, 0),
+                datetime.time(17, 0),
                 tzinfo=EASTERN,
-            ).astimezone(UTC)
+            ).astimezone(datetime.UTC)
         else:
-            self.checkout_time = datetime.now(UTC)
+            self.checkout_time = datetime.datetime.now(datetime.UTC)
 
     # def __repr__(self) -> str:
     #     return f'<Attendance {self.id}: Student {self.csu_id} at {self.check_in_time}>'
@@ -109,10 +119,10 @@ class GearCheckout(db.Model):
     mouse: so.Mapped[bool] = so.mapped_column(default=False)
     mousepad: so.Mapped[bool] = so.mapped_column(default=False)
     headset: so.Mapped[bool] = so.mapped_column(default=False)
-    checkout_time: so.Mapped[datetime] = so.mapped_column(
-        default=lambda: datetime.now(UTC), index=True
+    checkout_time: so.Mapped[datetime.datetime] = so.mapped_column(
+        default=lambda: datetime.datetime.now(datetime.UTC), index=True
     )
-    returned_time: so.Mapped[datetime | None] = so.mapped_column(
+    returned_time: so.Mapped[datetime.datetime | None] = so.mapped_column(
         nullable=True, index=True
     )
 
@@ -124,5 +134,15 @@ class GearCheckout(db.Model):
     def is_returned(self) -> bool:
         return self.returned_time is not None
 
-    def set_return_time(self):
-        self.returned_time = datetime.now(UTC)
+    # TODO: This is duplicate method from `Visit`. Should have mixin class
+    def set_checkout_time(self, *, to_eod=False):
+        if to_eod:
+            local_date = _convert_to_eastern(self.check_in_time).date()
+
+            self.checkout_time = datetime.datetime.combine(
+                local_date,
+                datetime.time(17, 0),
+                tzinfo=EASTERN,
+            ).astimezone(datetime.UTC)
+        else:
+            self.checkout_time = datetime.datetime.now(datetime.UTC)
