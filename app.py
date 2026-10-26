@@ -150,7 +150,6 @@ def gear_stats():
     return jsonify(get_gear_stats())
 
 
-# FIXME: The dates are in GMT should be in EST.
 @app.get('/api/gear/checkouts')
 def gear_checkouts():
     return jsonify({'checkouts': get_active_checkouts()})

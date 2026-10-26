@@ -14,6 +14,11 @@ def _convert_to_eastern(value: datetime.datetime):
     return value.astimezone(EASTERN)
 
 
+def _to_eastern_datetime(value: datetime.datetime):
+    """Returns datetime in EST formatted as YYYY-MM-DD HH MM SS AM/PM"""
+    return _convert_to_eastern(value).strftime('%Y-%m-%d %I:%M %p')
+
+
 # IDEA: Can create Mixin class that adds csu_id column as foreignkey
 class Student(db.Model):
     __tablename__ = 'students'
@@ -39,8 +44,8 @@ class Student(db.Model):
         back_populates='student', cascade='all, delete-orphan'
     )
 
-    # def __repr__(self) -> str:
-    #     return f'<Student {self.csu_id}: {self.full_name}>'
+    def __repr__(self) -> str:
+        return f'<Student {self.csu_id}: {self.full_name}>'
 
 
 class Visit(db.Model):
@@ -103,8 +108,8 @@ class Visit(db.Model):
         else:
             self.checkout_time = datetime.datetime.now(datetime.UTC)
 
-    # def __repr__(self) -> str:
-    #     return f'<Attendance {self.id}: Student {self.csu_id} at {self.check_in_time}>'
+    def __repr__(self) -> str:
+        return f'<Attendance {self.visit_id}: Student {self.csu_id} at {self.check_in_time}> UTC'
 
 
 class GearCheckout(db.Model):
@@ -146,3 +151,6 @@ class GearCheckout(db.Model):
             ).astimezone(datetime.UTC)
         else:
             self.returned_time = datetime.datetime.now(datetime.UTC)
+
+    def __repr__(self) -> str:
+        return f'<GearCheckout {self.checkout_id}: Student {self.csu_id} at {self.checkout_time} UTC>'

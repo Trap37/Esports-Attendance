@@ -6,7 +6,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app import db
 from config import EASTERN
-from models import GearCheckout, Student, Visit, _convert_to_eastern
+from models import GearCheckout, Student, Visit, _to_eastern_datetime
 
 
 # LATER: Add type hints for all func args.
@@ -221,7 +221,7 @@ def get_active_checkouts():
             # if r.student.full_name
             # else r.student.scan_id,
             'items': _gear_items(r),
-            'checkout_time': r.checkout_time,
+            'checkout_time': _to_eastern_datetime(r.checkout_time),
         }
         for r in rows
     ]
@@ -242,13 +242,11 @@ def get_attendance_in_range(start_date, end_date):
         .select_from(Visit)
         .outerjoin(Student, Visit.csu_id == Student.csu_id)
         .where(Visit.check_in_time >= start, Visit.check_in_time < end)
-        .order_by(Visit.check_in_time)
+        .order_by(Visit.check_in_time.desc())
     ).all()
     return [
         {
-            'check_in_time': _convert_to_eastern(v.check_in_time).strftime(
-                '%Y-%m-%d %I:%M %p'
-            ),
+            'check_in_time': _to_eastern_datetime(v.check_in_time),
             'day_of_week': v.day_of_week,
             'scan_id': s.scan_id,
             'csu_id': s.csu_id,
