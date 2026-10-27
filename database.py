@@ -79,6 +79,7 @@ def log_visit(scan_id: str, pending_scans: list[str]):
         elif visit.check_in_time.date() < datetime.now(UTC).date():
             # Close previous day's visit and start a new one.
             # BUG: If student checked in past 5pm check out time will be set before check in time.
+            # BUG: Student gear_checkout and visit don't get closed if coming back the same day
             close_previous_day_checkouts(student.csu_id)
             db.session.add(Visit(csu_id=student.csu_id))
             payload['checkout'] = False

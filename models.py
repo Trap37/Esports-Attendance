@@ -38,13 +38,11 @@ class Student(db.Model):
         index=True,
         unique=True,
     )
-    # XXX: Name needs to be always capitalized
     full_name: so.Mapped[str] = so.mapped_column(sa.String(128), index=True)
     # FEATURE: Make a Majors and Minors model and connect with many to many relationship
     major: so.Mapped[str] = so.mapped_column(
         sa.String(64),
     )
-    # XXX: Student grade level is no longer optional.
     grade_level: so.Mapped[str] = so.mapped_column(sa.String(16))
 
     visit_records: so.WriteOnlyMapped['Visit'] = so.relationship(
