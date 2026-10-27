@@ -108,8 +108,13 @@ def clear_pending_registration():
 
 @app.get('/api/attendance/today')
 def attendance_today():
-    names = get_todays_attendance()
-    return jsonify({'names': names, 'count': len(names)})
+    attendance = get_todays_attendance()
+    return jsonify(
+        {
+            'students': attendance,
+            'count': len(attendance),
+        }
+    )
 
 
 @app.post('/api/students/register')

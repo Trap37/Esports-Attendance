@@ -224,7 +224,7 @@
       <div class="form-group">
         <label for="reg-grade">Year</label>
         <select id="reg-grade">
-          <option value="">-- Select year (optional) --</option>
+          <option value="">-- Select year --</option>
           <option>Freshman</option>
           <option>Sophomore</option>
           <option>Junior</option>
@@ -261,8 +261,10 @@
       </div>
       <!-- FEATURE: Could have second tab option to select students currently in attendance -->
       <div class="form-group">
-        <label for="checkout-scan-input">Student Scan ID</label>
-        <input id="checkout-scan-input" type="text" placeholder="Scan student ID..." autocomplete="off">
+        <label for="checkout-student-select">Select Student</label>
+        <select id="checkout-student-select">
+          <option value="">-- Select student --</option>
+        </select>
       </div>
       <div id="checkout-error" class="modal-error hidden"></div>
       <div class="modal-actions">

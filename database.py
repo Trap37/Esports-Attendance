@@ -1,4 +1,5 @@
 from datetime import UTC, date, datetime, time, timedelta
+from typing import Any
 
 import sqlalchemy as sa
 from sqlalchemy.exc import IntegrityError
@@ -7,13 +8,13 @@ from app import db
 from config import EASTERN
 from models import GearCheckout, Student, Visit, _to_eastern_datetime
 
+
 # LATER: Add type hints for all func args.
 # TODO: Move a bunch of database queries from here to their respective models.
 # TODO: Refactor this partly directly into app.py file.
 # FEATURE: Add popup to let user know student checking in didn't checkout last time.
 # BUG: Need to make sure all 3 visit checkout time edge cases are solved.
-
-
+# XXX: Need to get rid of all students on turning a new day
 def close_previous_day_checkouts(csu_id: str):
     """Close visits and gear checkouts left open from previous days."""
     today = datetime.now(UTC).date()
@@ -114,15 +115,16 @@ def log_visit(scan_id: str, pending_scans: list[str]):
     return payload
 
 
-def get_todays_attendance() -> list:
-    """Return a list of student names who scanned in today."""
-    today = datetime.now(UTC)
-    start_time = datetime.combine(today, time.min)
+def get_todays_attendance() -> dict[str, str]:
+    """Return a list of student names who scanned in right now."""
+    today = datetime.now(UTC).date()
+    start_time = datetime.combine(today, time.min, tzinfo=UTC)
     end_time = start_time + timedelta(days=1)
 
     statement = (
         sa.select(
             Student.csu_id,
+            Student.scan_id,
             Student.full_name,
             sa.func.min(Visit.check_in_time).label('first_scan'),
         )
@@ -136,7 +138,7 @@ def get_todays_attendance() -> list:
         .order_by('first_scan')
     )
     rows = db.session.execute(statement).all()
-    return [row.full_name for row in rows]
+    return {row.scan_id: row.full_name for row in rows}
 
 
 def register_student(scan_id, csu_id, full_name, major, grade_level):

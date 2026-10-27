@@ -301,26 +301,49 @@ async function checkPendingRegistration() {
 function setupCheckoutModal() {
   document.getElementById("btn-checkout-open").addEventListener("click", () => {
     clearCheckoutForm();
+    loadCheckoutStudents()
     openModal("modal-checkout");
-    document.getElementById("checkout-scan-input").focus();
+    document.getElementById("checkout-student-select").focus();
   });
 
-  const scanInput = document.getElementById("checkout-scan-input");
-  scanInput.addEventListener("keydown", async (e) => {
-    if (e.key !== "Enter") return;
-    await submitCheckout();
-  });
+  // const scanInput = document.getElementById("checkout-student-select");
+  // scanInput.addEventListener("keydown", async (e) => {
+  //   if (e.key !== "Enter") return;
+  //   await submitCheckout();
+  // });
 
   document
     .getElementById("btn-checkout-submit")
     .addEventListener("click", submitCheckout);
 }
 
+async function loadCheckoutStudents() {
+  try {
+    const select = document.getElementById('checkout-student-select');
+    const res = await fetch('/api/attendance/today');
+    if (!res.ok) {
+        throw new Error('Failed to load attendance.');
+    }
+
+    const data = await res.json();
+
+    // Keep the default option and remove previously loaded students.
+    select.replaceChildren(new Option('-- Select student --', ''));
+
+    for (const [scanId, fullName] of Object.entries(data.students)) {
+        const option = new Option(fullName, scanId);
+        select.add(option);
+    }
+  } catch {
+
+  }
+}
+
 function clearCheckoutForm() {
   ["chk-keyboard", "chk-mouse", "chk-mousepad", "chk-headset"].forEach((id) => {
     document.getElementById(id).checked = false;
   });
-  document.getElementById("checkout-scan-input").value = "";
+  document.getElementById("checkout-student-select").value = "";
   showError("checkout-error", null);
 }
 
@@ -329,7 +352,7 @@ async function submitCheckout() {
   const mouse = document.getElementById("chk-mouse").checked;
   const mousepad = document.getElementById("chk-mousepad").checked;
   const headset = document.getElementById("chk-headset").checked;
-  const code = document.getElementById("checkout-scan-input").value.trim();
+  const code = document.getElementById("checkout-student-select").value;
 
   if (!keyboard && !mouse && !mousepad && !headset) {
     showError("checkout-error", "Select at least one gear item.");
@@ -337,7 +360,7 @@ async function submitCheckout() {
   }
   if (!code) {
     showError("checkout-error", "Scan the student's ID.");
-    document.getElementById("checkout-scan-input").focus();
+    document.getElementById("checkout-student-select").focus();
     return;
   }
 
@@ -366,8 +389,8 @@ async function submitCheckout() {
     } else {
       const err = await res.json();
       showError("checkout-error", err.error || "Checkout failed.");
-      document.getElementById("checkout-scan-input").value = "";
-      document.getElementById("checkout-scan-input").focus();
+      document.getElementById("checkout-student-select").value = "";
+      document.getElementById("checkout-student-select").focus();
     }
   } catch {
     showError("checkout-error", "Error communicating with server.");
@@ -386,7 +409,6 @@ function setupReturnModal() {
     .addEventListener("click", submitReturn);
 }
 
-// XXX: Students shouldn't have to scan id to return gear.
 function openReturnModal(checkoutId, studentName, items) {
   activeReturnCheckoutId = checkoutId;
   document.getElementById("return-student-info").textContent =
