@@ -131,11 +131,12 @@ def register():
             'grade_level': grade_level,
         },
     )
-    # XXX: Is this throwing an error on correct validation?
-    # It is working correctly though I think? Registration has worked fine
-    if form.validate():
+    if not form.validate():
         return jsonify(
-            {'error': 'Invalid registration details', 'details': form.errors}
+            {
+                'error': 'Invalid registration details',
+                'details': form.errors,
+            }
         ), 400
 
     success = register_student(

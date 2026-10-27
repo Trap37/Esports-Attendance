@@ -30,7 +30,7 @@ class Student(db.Model):
         unique=True,
     )
     full_name: so.Mapped[str] = so.mapped_column(sa.String(128), index=True)
-    # FIXME: This should ideally be a list of majors.
+    # FEATURE: Make a Majors and Minors model and connect with many to many relationship
     major: so.Mapped[str] = so.mapped_column(
         sa.String(64),
     )

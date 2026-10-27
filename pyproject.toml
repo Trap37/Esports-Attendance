@@ -13,7 +13,7 @@ dependencies = [
     "tzdata>=2026.5",
 ]
 
-# TODO: TESTS!
+# XXX: TESTS!
 #LATER: Fix readme.
 #LATER: Update .toml files
 # Reference praw and fastapi for ideas
