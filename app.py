@@ -177,7 +177,9 @@ def gear_checkout():
         return jsonify({'error': 'Select at least one gear item'}), 400
 
     try:
-        checkout_id = checkout_gear(scan_id, keyboard, mouse, mousepad, headset)
+        checkout_id = checkout_gear(
+            scan_id, keyboard, mouse, mousepad, headset, pending_scans=pending_scans
+        )
     except ValueError as e:
         return jsonify({'error': str(e)}), 409
 

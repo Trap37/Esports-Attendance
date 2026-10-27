@@ -14,6 +14,15 @@ def _convert_to_eastern(value: datetime.datetime):
     return value.astimezone(EASTERN)
 
 
+def _set_end_of_day(timestamp: datetime.date):
+    """Return 5 PM Eastern on the timestamp's local date, in UTC."""
+    return datetime.datetime.combine(
+        timestamp,
+        datetime.time(17, 0),
+        tzinfo=EASTERN,
+    ).astimezone(datetime.UTC)
+
+
 def _to_eastern_datetime(value: datetime.datetime):
     """Returns datetime in EST formatted as YYYY-MM-DD HH MM SS AM/PM"""
     return _convert_to_eastern(value).strftime('%Y-%m-%d %I:%M %p')
@@ -78,13 +87,6 @@ class Visit(db.Model):
 
     student: so.Mapped[Student] = so.relationship(back_populates='visit_records')
 
-    @staticmethod
-    def _convert_to_eastern(value: datetime.datetime):
-        if value.tzinfo is None:
-            value = value.replace(tzinfo=datetime.UTC)
-
-        return value.astimezone(EASTERN)
-
     @property
     def day_of_week(self):
         return _convert_to_eastern(self.check_in_time).strftime('%A')
@@ -103,13 +105,8 @@ class Visit(db.Model):
 
     def set_checkout_time(self, *, to_eod=False):
         if to_eod:
-            local_date = _convert_to_eastern(self.check_in_time).date()
-
-            self.checkout_time = datetime.datetime.combine(
-                local_date,
-                datetime.time(17, 0),
-                tzinfo=EASTERN,
-            ).astimezone(datetime.UTC)
+            local_datetime = _convert_to_eastern(self.check_in_time)
+            self.checkout_time = _set_end_of_day(local_datetime.date())
         else:
             self.checkout_time = datetime.datetime.now(datetime.UTC)
 
@@ -144,16 +141,10 @@ class GearCheckout(db.Model):
     def is_returned(self) -> bool:
         return self.returned_time is not None
 
-    # TODO: This is duplicate method from `Visit`. Should have mixin class
     def set_return_time(self, *, to_eod=False):
         if to_eod:
-            local_date = _convert_to_eastern(self.returned_time).date()
-
-            self.returned_time = datetime.datetime.combine(
-                local_date,
-                datetime.time(17, 0),
-                tzinfo=EASTERN,
-            ).astimezone(datetime.UTC)
+            local_date = _convert_to_eastern(self.checkout_time)
+            self.returned_time = _set_end_of_day(local_date.date())
         else:
             self.returned_time = datetime.datetime.now(datetime.UTC)
 
