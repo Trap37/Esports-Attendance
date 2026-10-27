@@ -239,6 +239,11 @@ async function submitRegister() {
     document.getElementById("reg-major").focus();
     return;
   }
+  if (!body.grade_level) {
+    showError("reg-error", "Grade level is required.");
+    document.getElementById("reg-grade").focus();
+    return;
+  }
 
   try {
     const res = await fetch("/api/students/register", {

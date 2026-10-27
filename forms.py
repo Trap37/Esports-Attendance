@@ -12,24 +12,24 @@ class StudentRegistrationForm(FlaskForm):
     csu_id = StringField(
         'CSU ID',
         description='12345678',
-        validators=[DataRequired(), Length(8)],
+        validators=[DataRequired(), Length(max=8)],
     )
     scan_id = StringField(
         'Scan ID',
         description='5 Digit number on the back of ID',
-        validators=[DataRequired(), Length(8)],
+        validators=[DataRequired(), Length(max=8)],
     )
     major = StringField(
         'Major',
         description='Computer Science',
         validators=[DataRequired(), Length(max=64)],
     )
-    grade = SelectField(
+    grade_level = SelectField(
         'Year',
         description='Freshman, Sophomore, etc.',
         choices=[
             # XXX: Want this to pop up first but not be valid option.
-            ('', '-- Select year (optional) --'),
+            # ('', '-- Select year (optional) --'),
             ('Freshman', 'Freshman'),
             ('Sophomore', 'Sophomore'),
             ('Junior', 'Junior'),

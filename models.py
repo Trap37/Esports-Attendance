@@ -29,6 +29,7 @@ class Student(db.Model):
         index=True,
         unique=True,
     )
+    # XXX: Name needs to be always capitalized
     full_name: so.Mapped[str] = so.mapped_column(sa.String(128), index=True)
     # FEATURE: Make a Majors and Minors model and connect with many to many relationship
     major: so.Mapped[str] = so.mapped_column(
@@ -43,6 +44,10 @@ class Student(db.Model):
     gear_checkout_records: so.WriteOnlyMapped['GearCheckout'] = so.relationship(
         back_populates='student', cascade='all, delete-orphan'
     )
+
+    @so.validates('full_name')
+    def validate_full_name(self, key: str, value: str):
+        return value.title()
 
     def __repr__(self) -> str:
         return f'<Student {self.csu_id}: {self.full_name}>'
