@@ -347,6 +347,8 @@ function clearCheckoutForm() {
   showError("checkout-error", null);
 }
 
+// XXX: This also needs the student select 
+// but only for students that have gear checked out.
 async function submitCheckout() {
   const keyboard = document.getElementById("chk-keyboard").checked;
   const mouse = document.getElementById("chk-mouse").checked;
