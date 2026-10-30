@@ -97,9 +97,9 @@ def log_visit(scan_id: str, pending_scans: list[str]):
                 tzinfo=EASTERN,
             ).astimezone(UTC)
             csu_ids = db.session.scalars(
-                sa.Select(GearCheckout.csu_id).where(
-                    GearCheckout.checkout_time < start_of_today,
-                    GearCheckout.returned_time.is_(None),
+                sa.Select(Visit.csu_id).where(
+                    Visit.check_in_time < start_of_today,
+                    Visit.checkout_time.is_(None),
                 )
             ).all()
 

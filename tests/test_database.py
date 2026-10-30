@@ -109,7 +109,7 @@ def test_log_visit_closes_previous_day_visit_and_starts_another(
     db_session, make_student, make_visit
 ):
     make_student(csu_id='10000001', scan_id='scan-1')
-    yesterday = datetime.now(UTC).date() - timedelta(days=1)
+    yesterday = datetime.now(EASTERN).date() - timedelta(days=1)
     previous_visit = make_visit(
         '10000001',
         check_in_time=datetime.combine(yesterday, time(14, 0), tzinfo=UTC),
@@ -334,7 +334,7 @@ def test_close_previous_day_checkouts_sets_old_visit_and_gear_to_five_pm(
     from datetime import timedelta
 
     student = make_student(csu_id='10000001', scan_id='scan-1')
-    old_checkin = datetime.now(UTC) - timedelta(days=2)
+    old_checkin = datetime.now(EASTERN).astimezone(UTC) - timedelta(days=2)
     old_visit = make_visit(student.csu_id, check_in_time=old_checkin)
     old_gear = make_gear_checkout(
         student.csu_id,
@@ -342,7 +342,7 @@ def test_close_previous_day_checkouts_sets_old_visit_and_gear_to_five_pm(
         checkout_time=old_checkin,
     )
 
-    database.close_previous_day_checkouts(student.csu_id)
+    database.close_previous_day_checkouts([student.csu_id])
     db_session.refresh(old_visit)
     db_session.refresh(old_gear)
 
