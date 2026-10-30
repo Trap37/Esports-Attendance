@@ -1,5 +1,5 @@
 [project]
-name = "esports-attendance-1"
+name = "esports-attendance-tracker"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -33,3 +33,10 @@ dev = [
 pythonpath = ["."]
 testpaths = ["tests"]
 addopts = "-ra"
+
+[tool.uv.workspace]
+members = [
+    "client",
+    "common",
+    "server",
+]

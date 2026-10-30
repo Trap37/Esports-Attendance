@@ -1,0 +1,22 @@
+[project]
+name = "client"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "trap37", email = "patrickthethree@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "common",
+]
+
+[project.scripts]
+client = "client:main"
+
+[build-system]
+requires = ["uv_build>=0.8.22,<0.9.0"]
+build-backend = "uv_build"
+
+[tool.uv.sources]
+common = { workspace = true, editable = true }

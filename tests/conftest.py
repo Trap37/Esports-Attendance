@@ -1,6 +1,6 @@
 """Shared fixtures for the Esports Attendance Tracker test suite."""
 # uv run --group dev pytest
-# uv run --group dev pytest --cov=src
+# uv run --group dev pytest --cov=src --cov-report=term-missing
 
 from __future__ import annotations
 

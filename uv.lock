@@ -6,6 +6,14 @@ resolution-markers = [
     "python_full_version < '3.15'",
 ]
 
+[manifest]
+members = [
+    "client",
+    "common",
+    "esports-attendance-1",
+    "server",
+]
+
 [[package]]
 name = "alembic"
 version = "1.20.0"
@@ -103,6 +111,17 @@ wheels = [
 ]
 
 [[package]]
+name = "client"
+version = "0.1.0"
+source = { editable = "client" }
+dependencies = [
+    { name = "common" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "common", editable = "common" }]
+
+[[package]]
 name = "colorama"
 version = "0.4.6"
 source = { registry = "https://pypi.org/simple" }
@@ -110,6 +129,11 @@ sdist = { url = "https://files.pythonhosted.org/packages/d8/53/6f443c9a4a8358a93
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d1/d6/3965ed04c63042e047cb6a3e6ed1a63a35087b6a609aa3a15ed8ac56c221/colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6", size = 25335, upload-time = "2022-10-25T02:36:20.889Z" },
 ]
+
+[[package]]
+name = "common"
+version = "0.1.0"
+source = { editable = "common" }
 
 [[package]]
 name = "coverage"
@@ -751,6 +775,17 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/1c/9a/c7da96c2c96d20704cf9027f7a5121da272a8c05f1d1531ba949e3b3df04/ruff-0.17.2-py3-none-win_amd64.whl", hash = "sha256:1b59d447f197bef9ef48a22ba1a6016137753c6099e9bac9c36eb566e422424c", size = 10282826, upload-time = "2026-10-22T18:37:55.2Z" },
     { url = "https://files.pythonhosted.org/packages/81/60/a3604c79cb02777b6cb84da894104021986f06c4bc41375102cc95049a32/ruff-0.17.2-py3-none-win_arm64.whl", hash = "sha256:195ad918027f817c119310ca89a42d347887dfc28934aaa869325e9c5dc9d962", size = 9827036, upload-time = "2026-10-22T18:37:58.031Z" },
 ]
+
+[[package]]
+name = "server"
+version = "0.1.0"
+source = { editable = "server" }
+dependencies = [
+    { name = "common" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "common", editable = "common" }]
 
 [[package]]
 name = "sqlalchemy"

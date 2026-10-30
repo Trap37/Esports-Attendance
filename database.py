@@ -20,7 +20,6 @@ from models import (
 # TODO: Refactor this partly directly into app.py file.
 # FEATURE: Add popup to let user know student checking in didn't checkout last time.
 # FIXME: Gear Checkouts should just be marked inactive instead of setting returned_time
-# XXX: Need this function run on server restart or webpage refresh
 def close_previous_day_checkouts(csu_ids: list[str]):
     """Close visits and gear checkouts left open from previous days."""
     today = _to_eastern_datetime(datetime.now(UTC)).date()
