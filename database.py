@@ -6,7 +6,13 @@ from sqlalchemy.exc import IntegrityError
 
 from app import db
 from config import EASTERN
-from models import GearCheckout, Student, Visit, _to_eastern_datetime
+from models import (
+    GearCheckout,
+    Student,
+    Visit,
+    _to_eastern_datetime,
+    _to_eastern_strftime,
+)
 
 
 # LATER: Add type hints for all func args.
@@ -17,7 +23,7 @@ from models import GearCheckout, Student, Visit, _to_eastern_datetime
 # XXX: Need to get rid of all students on turning a new day
 def close_previous_day_checkouts(csu_id: str):
     """Close visits and gear checkouts left open from previous days."""
-    today = datetime.now(UTC).date()
+    today = _to_eastern_datetime(datetime.now(UTC)).date()
 
     visits = db.session.scalars(
         sa.select(Visit).where(
@@ -27,7 +33,7 @@ def close_previous_day_checkouts(csu_id: str):
     ).all()
 
     for visit in visits:
-        if visit.check_in_time.date() < today:
+        if _to_eastern_datetime(visit.check_in_time).date() < today:
             visit.set_checkout_time(to_eod=True)
 
     gear_checkouts = db.session.scalars(
@@ -38,7 +44,7 @@ def close_previous_day_checkouts(csu_id: str):
     ).all()
 
     for checkout in gear_checkouts:
-        if checkout.checkout_time.date() < today:
+        if _to_eastern_datetime(checkout.checkout_time).date() < today:
             checkout.set_return_time(to_eod=True)
 
 
@@ -260,7 +266,7 @@ def get_active_checkouts():
             # if r.student.full_name
             # else r.student.scan_id,
             'items': _gear_items(r),
-            'checkout_time': _to_eastern_datetime(r.checkout_time),
+            'checkout_time': _to_eastern_strftime(r.checkout_time),
         }
         for r in rows
     ]
@@ -286,7 +292,7 @@ def get_attendance_in_range(start_date, end_date):
     ).all()
     return [
         {
-            'check_in_time': _to_eastern_datetime(v.check_in_time),
+            'check_in_time': _to_eastern_strftime(v.check_in_time),
             'day_of_week': v.day_of_week,
             'scan_id': s.scan_id,
             'csu_id': s.csu_id,

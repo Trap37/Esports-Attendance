@@ -7,7 +7,7 @@ from app import db
 from config import EASTERN
 
 
-def _convert_to_eastern(value: datetime.datetime):
+def _to_eastern_datetime(value: datetime.datetime):
     if value.tzinfo is None:
         value = value.replace(tzinfo=datetime.UTC)
 
@@ -23,9 +23,9 @@ def _set_end_of_day(timestamp: datetime.date):
     ).astimezone(datetime.UTC)
 
 
-def _to_eastern_datetime(value: datetime.datetime):
+def _to_eastern_strftime(value: datetime.datetime):
     """Returns datetime in EST formatted as YYYY-MM-DD HH MM SS AM/PM"""
-    return _convert_to_eastern(value).strftime('%Y-%m-%d %I:%M %p')
+    return _to_eastern_datetime(value).strftime('%Y-%m-%d %I:%M %p')
 
 
 # IDEA: Can create Mixin class that adds csu_id column as foreignkey
@@ -87,15 +87,15 @@ class Visit(db.Model):
 
     @property
     def day_of_week(self):
-        return _convert_to_eastern(self.check_in_time).strftime('%A')
+        return _to_eastern_datetime(self.check_in_time).strftime('%A')
 
     @property
     def week_number(self):
-        return int(_convert_to_eastern(self.check_in_time).strftime('%W'))
+        return int(_to_eastern_datetime(self.check_in_time).strftime('%W'))
 
     @property
     def month_str(self):
-        return _convert_to_eastern(self.check_in_time).strftime('%Y-%m')
+        return _to_eastern_datetime(self.check_in_time).strftime('%Y-%m')
 
     @property
     def is_checked_out(self) -> bool:
@@ -103,7 +103,7 @@ class Visit(db.Model):
 
     def set_checkout_time(self, *, to_eod=False):
         if to_eod:
-            local_datetime = _convert_to_eastern(self.check_in_time)
+            local_datetime = _to_eastern_datetime(self.check_in_time)
             self.checkout_time = _set_end_of_day(local_datetime.date())
         else:
             self.checkout_time = datetime.datetime.now(datetime.UTC)
@@ -141,7 +141,7 @@ class GearCheckout(db.Model):
 
     def set_return_time(self, *, to_eod=False):
         if to_eod:
-            local_date = _convert_to_eastern(self.checkout_time)
+            local_date = _to_eastern_datetime(self.checkout_time)
             self.returned_time = _set_end_of_day(local_date.date())
         else:
             self.returned_time = datetime.datetime.now(datetime.UTC)

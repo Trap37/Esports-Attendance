@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import SelectField, StringField, SubmitField
+from wtforms import SelectChoice, SelectField, StringField, SubmitField
 from wtforms.validators import DataRequired, Length
 
 
@@ -29,11 +29,11 @@ class StudentRegistrationForm(FlaskForm):
         description='Freshman, Sophomore, etc.',
         choices=[
             # ('', '-- Select year (optional) --'),
-            ('Freshman', 'Freshman'),
-            ('Sophomore', 'Sophomore'),
-            ('Junior', 'Junior'),
-            ('Senior', 'Senior'),
-            ('Graduate', 'Graduate'),
+            SelectChoice('Freshman', 'Freshman'),
+            SelectChoice('Sophomore', 'Sophomore'),
+            SelectChoice('Junior', 'Junior'),
+            SelectChoice('Senior', 'Senior'),
+            SelectChoice('Graduate', 'Graduate'),
         ],
         validators=[DataRequired()],
     )
