@@ -19,33 +19,34 @@ from models import (
 # TODO: Move a bunch of database queries from here to their respective models.
 # TODO: Refactor this partly directly into app.py file.
 # FEATURE: Add popup to let user know student checking in didn't checkout last time.
-# BUG: Need to make sure all 3 visit checkout time edge cases are solved.
-# XXX: Need to get rid of all students on turning a new day
-def close_previous_day_checkouts(csu_id: str):
+# FIXME: Gear Checkouts should just be marked inactive instead of setting returned_time
+# XXX: Need this function run on server restart or webpage refresh
+def close_previous_day_checkouts(csu_ids: list[str]):
     """Close visits and gear checkouts left open from previous days."""
     today = _to_eastern_datetime(datetime.now(UTC)).date()
 
-    visits = db.session.scalars(
-        sa.select(Visit).where(
-            Visit.csu_id == csu_id,
-            Visit.checkout_time.is_(None),
-        )
-    ).all()
+    for csu_id in csu_ids:
+        visits = db.session.scalars(
+            sa.select(Visit).where(
+                Visit.csu_id == csu_id,
+                Visit.checkout_time.is_(None),
+            )
+        ).all()
 
-    for visit in visits:
-        if _to_eastern_datetime(visit.check_in_time).date() < today:
-            visit.set_checkout_time(to_eod=True)
+        for visit in visits:
+            if _to_eastern_datetime(visit.check_in_time).date() < today:
+                visit.set_checkout_time(to_eod=True)
 
-    gear_checkouts = db.session.scalars(
-        sa.select(GearCheckout).where(
-            GearCheckout.csu_id == csu_id,
-            GearCheckout.returned_time.is_(None),
-        )
-    ).all()
+        gear_checkouts = db.session.scalars(
+            sa.select(GearCheckout).where(
+                GearCheckout.csu_id == csu_id,
+                GearCheckout.returned_time.is_(None),
+            )
+        ).all()
 
-    for checkout in gear_checkouts:
-        if _to_eastern_datetime(checkout.checkout_time).date() < today:
-            checkout.set_return_time(to_eod=True)
+        for checkout in gear_checkouts:
+            if _to_eastern_datetime(checkout.checkout_time).date() < today:
+                checkout.set_return_time(to_eod=True)
 
 
 # ── Attendance functions ──────────────────────────────────────────────────────
@@ -87,7 +88,22 @@ def log_visit(scan_id: str, pending_scans: list[str]):
             # Close previous day's visit and start a new one.
             # BUG: If student checked in past 5pm check out time will be set before check in time.
             # BUG: Student gear_checkout and visit don't get closed if coming back the same day
-            close_previous_day_checkouts(student.csu_id)
+            # TODO: This would probably benefit from being async
+
+            today = datetime.now(EASTERN).date()
+            start_of_today = datetime.combine(
+                today,
+                datetime.min.time(),
+                tzinfo=EASTERN,
+            ).astimezone(UTC)
+            csu_ids = db.session.scalars(
+                sa.Select(GearCheckout.csu_id).where(
+                    GearCheckout.checkout_time < start_of_today,
+                    GearCheckout.returned_time.is_(None),
+                )
+            ).all()
+
+            close_previous_day_checkouts(csu_ids)
             db.session.add(Visit(csu_id=student.csu_id))
             payload['checkout'] = False
 
@@ -259,7 +275,6 @@ def get_active_checkouts():
     ).all()
     return [
         {
-            # BUG: Why would student not have a full name?
             'checkout_id': r.checkout_id,
             'scan_id': r.student.scan_id,
             'full_name': r.student.full_name,
