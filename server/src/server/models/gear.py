@@ -5,7 +5,8 @@ import sqlalchemy as sa
 import sqlalchemy.orm as so
 
 from server.extensions import db
-from server.utils.dates import set_end_of_day, to_eastern_datetime
+from server.models.types import UTCDateTime
+from server.utils.dates import set_end_of_day, to_eastern_datetime, utc_now
 
 if typing.TYPE_CHECKING:
     from server.models.visit import Student
@@ -24,10 +25,10 @@ class GearCheckout(db.Model):
     mousepad: so.Mapped[bool] = so.mapped_column(default=False)
     headset: so.Mapped[bool] = so.mapped_column(default=False)
     checkout_time: so.Mapped[datetime.datetime] = so.mapped_column(
-        default=lambda: datetime.datetime.now(datetime.UTC), index=True
+        UTCDateTime, default=utc_now, index=True
     )
     returned_time: so.Mapped[datetime.datetime | None] = so.mapped_column(
-        nullable=True, index=True
+        UTCDateTime, nullable=True, index=True
     )
 
     student: so.Mapped['Student'] = so.relationship(

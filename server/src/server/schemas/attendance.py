@@ -10,51 +10,30 @@ from pydantic import (
     field_validator,
 )
 
+from server.schemas.base import BaseDTO, UTCDateTime
 from server.schemas.students import StudentDTO
-from server.utils.dates import utc_now
+from server.utils.dates import normalize_utc, utc_now
 
 
-class VisitDTO(BaseModel):
-    model_config = ConfigDict(
-        str_strip_whitespace=True,
-        extra='forbid',
-        str_min_length=1,
-        from_attributes=True,
-    )
-
+class VisitDTO(BaseDTO):
     visit_id: int
     csu_id: str = Field(max_length=8)
-    check_in_time: datetime
-    checkout_time: datetime | None
+    check_in_time: UTCDateTime
+    checkout_time: UTCDateTime | None
     student: StudentDTO
 
-    @field_validator('check_in_time')
+    @field_validator('check_in_time', 'checkout_time')
     def ensure_utc(cls, v: datetime | None):
         if v is None:
             return v
-
-        if v.tzinfo is None:
-            # Assume this was tz unaware from sql model
-            return v.replace(tzinfo=UTC)
-        return v.astimezone(UTC)
+        return normalize_utc(v)
 
 
 class VisitsListDTO(RootModel[list[VisitDTO]]): ...
 
 
-class StudentScanDTO(BaseModel):
-    model_config = ConfigDict(
-        str_strip_whitespace=True, extra='forbid', from_attributes=True
-    )
-
-    scan_id: str = Field(min_length=1, max_length=8)
-
-    @field_validator('scan_id')
-    def validate_scan_id(cls, v: str):
-        v = v.strip()
-        if not v:
-            raise ValueError('csu_id required')
-        return v
+class StudentScanDTO(BaseDTO):
+    scan_id: str = Field(max_length=8)
 
 
 class ScanResult(BaseModel):
@@ -65,7 +44,7 @@ class ScanResult(BaseModel):
         'gear_return_required',
         'checked_out',
     ]
-    time: datetime = Field(default_factory=utc_now)
+    time: UTCDateTime = Field(default_factory=utc_now)
 
 
 class ScanResponse(BaseModel):
@@ -77,23 +56,17 @@ class ScanResponse(BaseModel):
 
     @classmethod
     def from_result(cls, scan_result: 'ScanResult'):
-        return cls.model_construct(
+        return cls(
             student_name=scan_result.student_name,
             time=scan_result.time.strftime('%H:%M:%S'),
+            # FIXME: This probably doesn't need to exist anymore. Lean into enum from /api/scan
             registered=scan_result.student_name is not None,
             checkout=scan_result.status == 'checked_out',
             gear_checkout=scan_result.status == 'gear_return_required',
         )
 
 
-class ActiveStudentDTO(BaseModel):
-    model_config = ConfigDict(
-        str_strip_whitespace=True,
-        extra='forbid',
-        str_min_length=1,
-        from_attributes=True,
-    )
-
+class ActiveStudentDTO(BaseDTO):
     scan_id: str
     full_name: str
 

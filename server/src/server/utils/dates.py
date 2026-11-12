@@ -46,3 +46,10 @@ def set_end_of_day(timestamp: datetime.date):
 def to_eastern_strftime(value: datetime.datetime):
     """Returns datetime in EST formatted as YYYY-MM-DD HH:MM AM/PM"""
     return to_eastern_datetime(value).strftime('%Y-%m-%d %I:%M %p')
+
+
+def normalize_utc(value: datetime.datetime):
+    if value.tzinfo is None:
+        # Assume this was tz unaware from sql model
+        return value.replace(tzinfo=datetime.UTC)
+    return value.astimezone(datetime.UTC)

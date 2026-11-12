@@ -5,7 +5,8 @@ import sqlalchemy as sa
 import sqlalchemy.orm as so
 
 from server.extensions import db
-from server.utils.dates import set_end_of_day, to_eastern_datetime
+from server.models.types import UTCDateTime
+from server.utils.dates import set_end_of_day, to_eastern_datetime, utc_now
 
 if typing.TYPE_CHECKING:
     from server.models.student import Student
@@ -28,10 +29,10 @@ class Visit(db.Model):
         index=True,
     )
     check_in_time: so.Mapped[datetime.datetime] = so.mapped_column(
-        default=lambda: datetime.datetime.now(datetime.UTC)
+        UTCDateTime, default=utc_now
     )
     checkout_time: so.Mapped[datetime.datetime] = so.mapped_column(
-        nullable=True, default=None
+        UTCDateTime, nullable=True, default=None
     )
 
     student: so.Mapped['Student'] = so.relationship(back_populates='visit_records')
