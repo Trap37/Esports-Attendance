@@ -2,9 +2,6 @@ from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
 
 import sqlalchemy as sa
-from sqlalchemy.exc import IntegrityError
-
-from app import db
 from config import EASTERN
 from models import (
     GearCheckout,
@@ -13,6 +10,9 @@ from models import (
     _to_eastern_datetime,
     _to_eastern_strftime,
 )
+from sqlalchemy.exc import IntegrityError
+
+from app import db
 
 
 # LATER: Add type hints for all func args.

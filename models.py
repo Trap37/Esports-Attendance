@@ -2,9 +2,9 @@ import datetime
 
 import sqlalchemy as sa
 import sqlalchemy.orm as so
+from config import EASTERN
 
 from app import db
-from config import EASTERN
 
 
 def _to_eastern_datetime(value: datetime.datetime):

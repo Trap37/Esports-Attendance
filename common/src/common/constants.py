@@ -1,0 +1,7 @@
+APP_NAME = 'CSU Esports Attendance Tracker'
+
+PROTOCOL_VERSION = 1
+
+SCAN_ID_LENGTH = 8
+
+DEFAULT_SERVER_PORT = 5000

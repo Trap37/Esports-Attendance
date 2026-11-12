@@ -120,7 +120,7 @@ function setupScanInput() {
     input.value = "";
 
     try {
-      const res = await fetch("/api/scan", {
+      const res = await fetch("/api/attendance/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ scan_id: code }),
@@ -301,7 +301,7 @@ async function checkPendingRegistration() {
 function setupCheckoutModal() {
   document.getElementById("btn-checkout-open").addEventListener("click", () => {
     clearCheckoutForm();
-    loadCheckoutStudents()
+    loadCheckoutStudents();
     openModal("modal-checkout");
     document.getElementById("checkout-student-select").focus();
   });
@@ -319,24 +319,22 @@ function setupCheckoutModal() {
 
 async function loadCheckoutStudents() {
   try {
-    const select = document.getElementById('checkout-student-select');
-    const res = await fetch('/api/attendance/today');
+    const select = document.getElementById("checkout-student-select");
+    const res = await fetch("/api/attendance/today");
     if (!res.ok) {
-        throw new Error('Failed to load attendance.');
+      throw new Error("Failed to load attendance.");
     }
 
     const data = await res.json();
 
     // Keep the default option and remove previously loaded students.
-    select.replaceChildren(new Option('-- Select student --', ''));
+    select.replaceChildren(new Option("-- Select student --", ""));
 
     for (const [scanId, fullName] of Object.entries(data.students)) {
-        const option = new Option(fullName, scanId);
-        select.add(option);
+      const option = new Option(fullName, scanId);
+      select.add(option);
     }
-  } catch {
-
-  }
+  } catch {}
 }
 
 function clearCheckoutForm() {
@@ -347,7 +345,7 @@ function clearCheckoutForm() {
   showError("checkout-error", null);
 }
 
-// XXX: This also needs the student select 
+// XXX: This also needs the student select
 // but only for students that have gear checked out.
 async function submitCheckout() {
   const keyboard = document.getElementById("chk-keyboard").checked;

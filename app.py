@@ -3,31 +3,11 @@ import logging
 from datetime import date, datetime
 from io import BytesIO
 
+from config import Config, IgnorePendingRequests
 from flask import Flask, jsonify, render_template, request, send_file
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
-
-from config import Config, IgnorePendingRequests
 from forms import StudentRegistrationForm
-
-db = SQLAlchemy()
-migrate = Migrate()
-
-
-def create_app(config_object=Config):
-    app = Flask(__name__)
-    app.config.from_object(config_object)
-    # app.logger.addFilter(IgnorePendingRequests())
-    logging.getLogger('werkzeug').addFilter(IgnorePendingRequests())
-
-    db.init_app(app)
-    migrate.init_app(app, db)
-    with app.app_context():
-        import models
-    return app
-
-
-app = create_app()
 
 from database import (
     checkout_gear,
@@ -45,16 +25,6 @@ from database import (
 )
 
 pending_scans: list[str] = []
-
-
-# TODO: Define DTOs for API inputs where validation is inconsistent. Use Pydantic
-# Start with student registration and gear checkout.
-# Reuse existing Flask-WTF validation where appropriate;
-# don't duplicate it just to follow a pattern.
-# ── Main page ─────────────────────────────────────────────────────────────────
-@app.route('/')
-def index():
-    return render_template('index.html')
 
 
 # ── Attendance endpoints ──────────────────────────────────────────────────────
@@ -117,43 +87,43 @@ def attendance_today():
     )
 
 
-@app.post('/api/students/register')
-def register():
-    data = request.get_json(silent=True) or {}
-    full_name = (data.get('full_name') or '').strip()
-    scan_id = (data.get('scan_id') or '').strip()
-    csu_id = (data.get('csu_id') or '').strip()
-    major = (data.get('major') or '').strip()
-    grade_level = (data.get('grade_level') or '').strip()
+# @app.post('/api/students/register')
+# def register():
+#     data = request.get_json(silent=True) or {}
+#     full_name = (data.get('full_name') or '').strip()
+#     scan_id = (data.get('scan_id') or '').strip()
+#     csu_id = (data.get('csu_id') or '').strip()
+#     major = (data.get('major') or '').strip()
+#     grade_level = (data.get('grade_level') or '').strip()
 
-    form = StudentRegistrationForm(
-        meta={'csrf': False},
-        data={
-            'full_name': full_name,
-            'scan_id': scan_id,
-            'csu_id': csu_id,
-            'major': major,
-            'grade_level': grade_level,
-        },
-    )
-    if not form.validate():
-        return jsonify(
-            {
-                'error': 'Invalid registration details',
-                'details': form.errors,
-            }
-        ), 400
+#     form = StudentRegistrationForm(
+#         meta={'csrf': False},
+#         data={
+#             'full_name': full_name,
+#             'scan_id': scan_id,
+#             'csu_id': csu_id,
+#             'major': major,
+#             'grade_level': grade_level,
+#         },
+#     )
+#     if not form.validate():
+#         return jsonify(
+#             {
+#                 'error': 'Invalid registration details',
+#                 'details': form.errors,
+#             }
+#         ), 400
 
-    success = register_student(
-        scan_id=scan_id,
-        csu_id=csu_id,
-        full_name=full_name,
-        major=major,
-        grade_level=grade_level,
-    )
-    if success:
-        return jsonify({'success': True}), 201
-    return jsonify({'error': 'A student with that Scan ID already exists'}), 409
+#     success = register_student(
+#         scan_id=scan_id,
+#         csu_id=csu_id,
+#         full_name=full_name,
+#         major=major,
+#         grade_level=grade_level,
+#     )
+#     if success:
+#         return jsonify({'success': True}), 201
+#     return jsonify({'error': 'A student with that Scan ID already exists'}), 409
 
 
 # ── Gear checkout endpoints ───────────────────────────────────────────────────
@@ -254,34 +224,34 @@ def attendance_history():
 
 
 # ── Students list & edit ──────────────────────────────────────────────────────
-@app.get('/api/students')
-def students_list():
-    q = (request.args.get('q') or '').strip() or None
-    return jsonify({'students': list_students(q)})
+# @app.get('/api/students')
+# def students_list():
+#     q = (request.args.get('q') or '').strip() or None
+#     return jsonify({'students': list_students(q)})
 
 
-@app.get('/api/students/<scan_id>')
-def students_get(scan_id: str):
-    student = get_student(scan_id)
-    if not student:
-        return jsonify({'error': 'Student not found'}), 404
-    return jsonify(student)
+# @app.get('/api/students/<scan_id>')
+# def students_get(scan_id: str):
+#     student = get_student(scan_id)
+#     if not student:
+#         return jsonify({'error': 'Student not found'}), 404
+#     return jsonify(student)
 
 
-@app.put('/api/students/<scanner_code>')
-def students_update(scanner_code):
-    data = request.get_json(silent=True) or {}
-    scan_id = (data.get('scan_id') or '').strip()
-    full_name = (data.get('full_name') or '').strip()
-    major = (data.get('major') or '').strip()
-    grade_level = (data.get('grade_level') or '').strip()
+# @app.put('/api/students/<scanner_code>')
+# def students_update(scanner_code):
+#     data = request.get_json(silent=True) or {}
+#     scan_id = (data.get('scan_id') or '').strip()
+#     full_name = (data.get('full_name') or '').strip()
+#     major = (data.get('major') or '').strip()
+#     grade_level = (data.get('grade_level') or '').strip()
 
-    if not scan_id or not full_name or not major or not grade_level:
-        return jsonify({'error': 'scan_id, full_name, and major are required'}), 400
+#     if not scan_id or not full_name or not major or not grade_level:
+#         return jsonify({'error': 'scan_id, full_name, and major are required'}), 400
 
-    if not update_student(scanner_code, scan_id, full_name, major, grade_level):
-        return jsonify({'error': 'Student not found'}), 404
-    return jsonify({'success': True})
+#     if not update_student(scanner_code, scan_id, full_name, major, grade_level):
+#         return jsonify({'error': 'Student not found'}), 404
+#     return jsonify({'success': True})
 
 
 # ── Reports / Excel export ────────────────────────────────────────────────────
