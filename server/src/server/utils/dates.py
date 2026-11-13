@@ -16,12 +16,13 @@ def utc_now():
 
 def eastern_now():
     """Return the current Eastern datetime."""
-    return utc_now().astimezone(EASTERN)
+    # return utc_now().astimezone(EASTERN)
+    return datetime.datetime.now(EASTERN)
 
 
 def utc_start_of_today():
     return datetime.datetime.combine(
-        eastern_now(),
+        eastern_now().date(),
         datetime.time.min,
         EASTERN,
     ).astimezone(datetime.UTC)
@@ -43,9 +44,12 @@ def set_end_of_day(timestamp: datetime.date):
     ).astimezone(datetime.UTC)
 
 
-def to_eastern_strftime(value: datetime.datetime):
-    """Returns datetime in EST formatted as YYYY-MM-DD HH:MM AM/PM"""
-    return to_eastern_datetime(value).strftime('%Y-%m-%d %I:%M %p')
+def format_timestamp(value: datetime.datetime, *, include_date=True):
+    """Format a datetime as YYYY-MM-DD HH:MM AM/PM or HH:MM:SS AM/PM."""
+    if include_date:
+        return value.strftime('%Y-%m-%d %I:%M %p')
+    else:
+        return value.strftime('%I:%M:%S %p')
 
 
 def normalize_utc(value: datetime.datetime):
@@ -53,3 +57,43 @@ def normalize_utc(value: datetime.datetime):
         # Assume this was tz unaware from sql model
         return value.replace(tzinfo=datetime.UTC)
     return value.astimezone(datetime.UTC)
+
+
+def eastern_date_range_to_utc(
+    start_date: datetime.date,
+    end_date: datetime.date,
+):
+    if start_date > end_date:
+        raise ValueError('start_date must be on or before end_date')
+
+    start = datetime.datetime.combine(
+        start_date,
+        datetime.time.min,
+        EASTERN,
+    )
+
+    end = datetime.datetime.combine(
+        end_date + datetime.timedelta(days=1),
+        datetime.time.min,
+        EASTERN,
+    )
+
+    return (
+        start.astimezone(datetime.UTC),
+        end.astimezone(datetime.UTC),
+    )
+
+
+# def parse_date_range(start: str, end: str):
+#     try:
+#         start_date = datetime.date.fromisoformat(start)
+#         end_date = datetime.date.fromisoformat(end)
+#     except ValueError:
+#         return None, None, ('start and end must be YYYY-MM-DD', 400)
+
+#     if start_date.isoformat() != start or end_date.isoformat() != end:
+#         return None, None, ('start and end must be YYYY-MM-DD', 400)
+#     if start_date > end_date:
+#         return None, None, ('start must be on or before end', 400)
+
+#     return start_date, end_date, None

@@ -3,6 +3,7 @@ from pydantic import ValidationError
 
 from server.dependencies import get_students_service
 from server.schemas.students import (
+    ListStudentsResponse,
     StudentDTO,
     StudentRegistrationError,
     StudentRetrievalError,
@@ -20,7 +21,11 @@ def students_list():
 
     service = get_students_service()
     result = service.list_students(q)
-    return jsonify(result.model_dump(mode='json'))
+    return jsonify(
+        ListStudentsResponse.model_validate({'students': result.root}).model_dump(
+            mode='json'
+        )
+    )
 
 
 @bp.get('/<scan_id>')

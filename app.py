@@ -76,15 +76,15 @@ def clear_pending_registration():
     return jsonify({'success': True})
 
 
-@app.get('/api/attendance/today')
-def attendance_today():
-    attendance = get_todays_attendance()
-    return jsonify(
-        {
-            'students': attendance,
-            'count': len(attendance),
-        }
-    )
+# @app.get('/api/attendance/today')
+# def attendance_today():
+#     attendance = get_todays_attendance()
+#     return jsonify(
+#         {
+#             'students': attendance,
+#             'count': len(attendance),
+#         }
+#     )
 
 
 # @app.post('/api/students/register')
@@ -205,22 +205,22 @@ def _parse_date_range():
     return start_date, end_date, None
 
 
-@app.get('/api/attendance/history')
-def attendance_history():
-    start, end, err = _parse_date_range()
+# @app.get('/api/attendance/history')
+# def attendance_history():
+#     start, end, err = _parse_date_range()
 
-    if err:
-        return jsonify({'error': err[0]}), err[1]
+#     if err:
+#         return jsonify({'error': err[0]}), err[1]
 
-    rows = get_attendance_in_range(start, end)
-    return jsonify(
-        {
-            'start': start.isoformat(),
-            'end': end.isoformat(),
-            'count': len(rows),
-            'rows': rows,
-        }
-    )
+#     rows = get_attendance_in_range(start, end)
+#     return jsonify(
+#         {
+#             'start': start.isoformat(),
+#             'end': end.isoformat(),
+#             'count': len(rows),
+#             'rows': rows,
+#         }
+#     )
 
 
 # ── Students list & edit ──────────────────────────────────────────────────────

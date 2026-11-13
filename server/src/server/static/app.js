@@ -18,7 +18,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupEditModal();
   setupModalCloseButtons();
   setupOverlayDismiss();
-  loadAttendance();
+  setupAttendanceTab();
   focusScanInput();
   setInterval(checkPendingRegistration, 1000);
 });
@@ -127,31 +127,40 @@ function setupScanInput() {
       });
       const data = await res.json();
       appendScanLog(data);
-      loadAttendance();
+
+      if (data.status === "checking_in") {
+        changeAttendanceCount(1);
+      } else {
+        changeAttendanceCount(-1);
+      }
     } catch {
-      appendScanLogRaw("Error communicating with server", false);
+      appendScanLogRaw("Error communicating with server", false, "");
     }
   });
 }
 
 function appendScanLog(data) {
-  const msg = !data.registered
-    ? `[${data.time}]  Unknown scan (not registered)`
-    : data.checkout
-      ? `[${data.time}]  Goodbye, ${data.name}!`
-      : `[${data.time}]  Welcome, ${data.name}!`;
-  appendScanLogRaw(
-    msg,
-    data.name,
-    data.registered,
-    data.checkout,
-    data.gear_checkout,
+  const formattedTime = new Date(data.check_in_time).toLocaleTimeString(
+    "en-US",
+    {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    },
   );
+
+  const msg =
+    data.status === "student_not_found"
+      ? `[${formattedTime}]  Unknown scan (not registered)`
+      : data.status === "checking_in"
+        ? `[${formattedTime}]  Welcome, ${data.student_name}!`
+        : `[${formattedTime}]  Goodbye, ${data.student_name}!`;
+  appendScanLogRaw(msg, data.student_name, data.status);
 }
 
-function appendScanLogRaw(msg, name, registered, checkout, gear_checkout) {
-  if (gear_checkout) {
-    alert(`${name} is checking out but has not returned their gear`);
+function appendScanLogRaw(msg, student_name, status) {
+  if (status === "gear_return_required") {
+    alert(`${student_name} is checking out but has not returned their gear`);
     return;
   }
 
@@ -162,23 +171,85 @@ function appendScanLogRaw(msg, name, registered, checkout, gear_checkout) {
 
   const li = document.createElement("li");
   li.textContent = msg;
-  li.className = !registered
-    ? "log-entry-unknown"
-    : checkout
-      ? "log-entry-checkout"
-      : "log-entry-check-in";
+  li.className =
+    status === "student_not_found"
+      ? "log-entry-unknown"
+      : status === "checking_in"
+        ? "log-entry-check-in"
+        : "log-entry-checkout";
   list.prepend(li);
 }
 
-// TODO: Load all logs in scan log box on refresh so it doesn't say no scans.
-async function loadAttendance() {
+function expandVisitLogs(visit_log) {
+  const logs = [];
+
+  logs.push({
+    student_name: visit_log.student_name,
+    status: "checking_in",
+    check_in_time: visit_log.check_in_time,
+  });
+
+  if (visit_log.checkout_time) {
+    logs.push({
+      student_name: visit_log.student_name,
+      status: "checking_out",
+      check_in_time: visit_log.checkout_time,
+    });
+  }
+
+  return logs;
+}
+
+async function setupAttendanceTab() {
   try {
     const res = await fetch("/api/attendance/today");
+
+    if (!res.ok) {
+      throw new Error("Failed to load attendance.");
+    }
+
     const data = await res.json();
-    document.getElementById("attendance-count").textContent = data.count;
-  } catch {
-    // Non-critical; don't surface to user
+
+    const logs = [];
+    let student_count = 0;
+    for (const visit_log of data.students) {
+      logs.push(...expandVisitLogs(visit_log));
+
+      // Count visits that haven't been checked out yet
+      if (visit_log.checkout_time === null) {
+        student_count++;
+      }
+    }
+
+    logs.sort((a, b) => new Date(a.check_in_time) - new Date(b.check_in_time));
+    console.debug(logs);
+
+    for (const log of logs) {
+      appendScanLog(log);
+    }
+
+    changeAttendanceCount(student_count);
+  } catch (error) {
+    console.error("Attendance tab error:", error);
+    console.error("Error details:", error.message);
+
+    appendScanLogRaw("Error communicating with server", false, "");
   }
+}
+
+// TODO: Load all logs in scan log box on refresh so it doesn't say no scans.
+// async function loadAttendanceCount() {
+//   try {
+//     const res = await fetch("/api/attendance/today");
+//     const data = await res.json();
+//     document.getElementById("attendance-count").textContent = data.count;
+//   } catch {
+//     // Non-critical; don't surface to user
+//   }
+// }
+function changeAttendanceCount(by) {
+  const attendanceCount = document.getElementById("attendance-count");
+  attendanceCount.textContent = parseInt(attendanceCount.textContent, 10) + by;
 }
 
 // ── Register Student modal ────────────────────────────────────────────────────
@@ -254,6 +325,7 @@ async function submitRegister() {
     if (res.status === 201) {
       closeModal("modal-register");
       registrationPending = false;
+      loadStudents();
     } else {
       const err = await res.json();
       showError("reg-error", err.error || "Registration failed.");
@@ -320,7 +392,7 @@ function setupCheckoutModal() {
 async function loadCheckoutStudents() {
   try {
     const select = document.getElementById("checkout-student-select");
-    const res = await fetch("/api/attendance/today");
+    const res = await fetch("/api/attendance/active");
     if (!res.ok) {
       throw new Error("Failed to load attendance.");
     }

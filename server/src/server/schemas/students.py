@@ -1,9 +1,10 @@
 from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, RootModel, field_validator
 
-from server.schemas.base import BaseDTO, GradeLevel
+from server.schemas.base import BaseDTO
+from server.schemas.types import GradeLevel
 from server.utils.dates import utc_now
 
 
@@ -15,12 +16,15 @@ class StudentDTO(BaseDTO):
     grade_level: GradeLevel
 
 
+class ListStudentsResult(RootModel[list[StudentDTO]]): ...
+
+
+class ListStudentsResponse(BaseModel):
+    students: list[StudentDTO]
+
+
 class StudentRegistrationError(BaseModel):
     error: str = 'A student with that Scan ID already exists'
-
-
-class StudentRetrievalResult(BaseModel):
-    students: list['StudentDTO']
 
 
 class StudentRetrievalError(BaseModel):

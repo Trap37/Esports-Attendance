@@ -6,7 +6,7 @@ from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 
 from server.models.student import Student
-from server.schemas.students import StudentDTO, StudentRetrievalResult
+from server.schemas.students import ListStudentsResult, StudentDTO
 
 if TYPE_CHECKING:
     from flask_sqlalchemy import SQLAlchemy
@@ -65,12 +65,15 @@ class StudentRepository:
                     Student.scan_id.ilike(pattern),
                 )
             )
-        return StudentRetrievalResult(
-            students=[
-                StudentDTO.model_validate(student)
-                for student in self._db.session.scalars(statement).all()
-            ]
+        return ListStudentsResult.model_validate(
+            self._db.session.scalars(statement).all()
         )
+        # return StudentListResult(
+        #     students=[
+        #         StudentDTO.model_validate(student)
+        #         for student in self._db.session.scalars(statement).all()
+        #     ]
+        # )
 
     def update(self, scanner_code, scan_id, full_name, major, grade_level):
         student = self._db.session.scalar(
