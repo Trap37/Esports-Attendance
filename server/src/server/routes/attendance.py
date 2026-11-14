@@ -10,7 +10,7 @@ from server.schemas.attendance import (
     StudentScanDTO,
 )
 from server.schemas.types import DateRange
-from server.utils.errors import format_pydantic_validation_errors
+from server.utils.errors import depricated_format_pydantic_validation_errors
 
 bp = Blueprint('attendance', __name__)
 
@@ -22,7 +22,7 @@ def scan():
             request.get_json(silent=True) or {}
         )
     except ValidationError as e:
-        errors = format_pydantic_validation_errors(e)
+        errors = depricated_format_pydantic_validation_errors(e)
         return jsonify({'errors': errors}), 400
 
     service = get_attendance_service()
@@ -49,7 +49,7 @@ def attendance_history():
             }
         )
     except ValidationError as e:
-        errors = format_pydantic_validation_errors(e)
+        errors = depricated_format_pydantic_validation_errors(e)
         return jsonify({'errors': errors}), 400
 
     service = get_attendance_service()

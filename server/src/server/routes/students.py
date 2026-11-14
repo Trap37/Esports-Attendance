@@ -10,7 +10,7 @@ from server.schemas.students import (
     StudentUpdate,
     StudentUpdateError,
 )
-from server.utils.errors import format_pydantic_validation_errors
+from server.utils.errors import depricated_format_pydantic_validation_errors
 
 bp = Blueprint('students', __name__)
 
@@ -42,7 +42,7 @@ def register():
     try:
         data = StudentDTO.model_validate(request.get_json(silent=True) or {})
     except ValidationError as e:
-        errors = format_pydantic_validation_errors(e)
+        errors = depricated_format_pydantic_validation_errors(e)
         return jsonify(
             {
                 'error': 'Invalid registration details',
@@ -64,7 +64,7 @@ def students_update(scanner_code: str):
         r['scanner_code'] = scanner_code
         data = StudentUpdate.model_validate(r)
     except ValidationError as e:
-        errors = format_pydantic_validation_errors(e)
+        errors = depricated_format_pydantic_validation_errors(e)
         return jsonify(
             {
                 'error': 'Invalid registration details',

@@ -10,6 +10,7 @@ from server.utils.dates import (
     eastern_now,
     utc_now,
     utc_start_of_today,
+    utc_time_is_before_today,
 )
 
 if typing.TYPE_CHECKING:
@@ -47,7 +48,7 @@ class AttendanceService:
                 status=ScanStatus.CHECKING_IN,
             )
 
-        elif visit.check_in_time < utc_start_of_today():
+        elif utc_time_is_before_today(visit.check_in_time):
             self._close_previous_day_visits(student.csu_id)
             self._close_previous_day_checkouts(student.csu_id)
 

@@ -84,6 +84,16 @@ def eastern_date_range_to_utc(
     )
 
 
+def utc_time_is_before_today(utc_time: datetime.datetime):
+    if utc_time.tzinfo is None or utc_time.utcoffset() is None:
+        raise ValueError('utc_time must be timezone-aware')
+
+    if utc_time.utcoffset().total_seconds() != 0:
+        raise ValueError('utc_time must be in UTC')
+
+    return utc_time < utc_start_of_today()
+
+
 # def parse_date_range(start: str, end: str):
 #     try:
 #         start_date = datetime.date.fromisoformat(start)

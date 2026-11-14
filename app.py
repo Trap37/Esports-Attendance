@@ -137,31 +137,31 @@ def gear_checkouts():
     return jsonify({'checkouts': get_active_checkouts()})
 
 
-@app.post('/api/gear/checkout')
-def gear_checkout():
-    data = request.get_json(silent=True) or {}
-    scan_id = (data.get('scan_id') or '').strip()
-    keyboard = bool(data.get('keyboard'))
-    mouse = bool(data.get('mouse'))
-    mousepad = bool(data.get('mousepad'))
-    headset = bool(data.get('headset'))
+# @app.post('/api/gear/checkout')
+# def gear_checkout():
+#     data = request.get_json(silent=True) or {}
+#     scan_id = (data.get('scan_id') or '').strip()
+#     keyboard = bool(data.get('keyboard'))
+#     mouse = bool(data.get('mouse'))
+#     mousepad = bool(data.get('mousepad'))
+#     headset = bool(data.get('headset'))
 
-    if not scan_id:
-        return jsonify({'error': 'scan_id required'}), 400
-    if not any([keyboard, mouse, mousepad, headset]):
-        return jsonify({'error': 'Select at least one gear item'}), 400
+#     if not scan_id:
+#         return jsonify({'error': 'scan_id required'}), 400
+#     if not any([keyboard, mouse, mousepad, headset]):
+#         return jsonify({'error': 'Select at least one gear item'}), 400
 
-    try:
-        checkout_id = checkout_gear(
-            scan_id, keyboard, mouse, mousepad, headset, pending_scans=pending_scans
-        )
-    except ValueError as e:
-        return jsonify({'error': str(e)}), 409
+#     try:
+#         checkout_id = checkout_gear(
+#             scan_id, keyboard, mouse, mousepad, headset, pending_scans=pending_scans
+#         )
+#     except ValueError as e:
+#         return jsonify({'error': str(e)}), 409
 
-    if checkout_id is None:
-        return jsonify({'error': 'Student not found — please register first'}), 404
+#     if checkout_id is None:
+#         return jsonify({'error': 'Student not found — please register first'}), 404
 
-    return jsonify({'checkout_id': checkout_id}), 201
+#     return jsonify({'checkout_id': checkout_id}), 201
 
 
 @app.post('/api/gear/return/<int:checkout_id>')

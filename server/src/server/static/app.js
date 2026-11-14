@@ -442,17 +442,12 @@ async function submitCheckout() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         scan_id: code,
-        keyboard,
-        mouse,
-        mousepad,
-        headset,
-      }),
-      body: JSON.stringify({
-        scan_id: code,
-        keyboard,
-        mouse,
-        mousepad,
-        headset,
+        items: {
+          keyboard: keyboard,
+          mouse: mouse,
+          mousepad: mousepad,
+          headset: headset,
+        },
       }),
     });
     if (res.status === 201) {

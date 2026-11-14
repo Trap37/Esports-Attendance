@@ -20,10 +20,10 @@ class StudentRepository:
         student = self._db.session.scalar(
             sa.select(Student).where(Student.scan_id == scan_id)
         )
-        try:
-            return StudentDTO.model_validate(student)
-        except ValidationError:
+
+        if student is None:
             return None
+        return StudentDTO.model_validate(student)
 
     def register(
         self,
@@ -65,6 +65,7 @@ class StudentRepository:
                     Student.scan_id.ilike(pattern),
                 )
             )
+
         return ListStudentsResult.model_validate(
             self._db.session.scalars(statement).all()
         )
