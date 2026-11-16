@@ -9,6 +9,7 @@ from server.schemas.attendance import (
     ScanResponse,
     StudentScanDTO,
 )
+from server.schemas.responses import SuccessResponse
 from server.schemas.types import DateRange
 from server.utils.errors import depricated_format_pydantic_validation_errors
 
@@ -53,15 +54,16 @@ def attendance_history():
         return jsonify({'errors': errors}), 400
 
     service = get_attendance_service()
-    result = service.get_attendance_in_range(date_range)
+    result = service.get_attendance_in_range(date_range, include_mappings=True)
 
     return jsonify(
         AttendanceHistoryResponse.model_validate(
             {
                 'start': date_range.start,
                 'end': date_range.end,
-                'rows': result.root,
-            }
+                'rows': result,
+            },
+            from_attributes=True,
         ).model_dump(mode='json')
     )
     # return jsonify(
@@ -78,10 +80,11 @@ def attendance_history():
 def active_attendees():
     service = get_attendance_service()
     result = service.get_active_attendance()
+
     return jsonify(
         ActiveStudentsResponse.model_validate(
             {
-                'students': result.root,
+                'students': result,
             }
         ).model_dump(mode='json')
     )

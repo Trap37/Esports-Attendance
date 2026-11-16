@@ -1,4 +1,5 @@
 import typing
+from collections import abc
 from datetime import UTC, datetime, timedelta
 
 import sqlalchemy as sa
@@ -6,7 +7,7 @@ import sqlalchemy.orm as so
 
 from server.models.student import Student
 from server.models.visit import Visit
-from server.schemas.attendance import ActiveVisitDTO, VisitsListDTO
+from server.schemas.attendance import ActiveVisitDTO, MappedVisitDTO, VisitDTO
 from server.utils.dates import (
     set_end_of_day,
     to_eastern_datetime,
@@ -22,6 +23,10 @@ class AttendanceRepository:
     def __init__(self, db: 'SQLAlchemy'):
         self._db = db
 
+    def create(self, csu_id: str):
+        self._db.session.add(Visit(csu_id=csu_id))
+        self._db.session.commit()
+
     # FIXME: use active=True param instead of assuming user wants active only
     def get_active_visit(self, csu_id: str):
         return self._db.session.scalar(
@@ -31,19 +36,48 @@ class AttendanceRepository:
             )
         )
 
-    def get_active_visits_before(self, csu_id: str, start_of_today: datetime):
-        return self._db.session.scalars(
-            sa.select(Visit)
-            .where(
-                Visit.csu_id == csu_id,
-                Visit.check_in_time < start_of_today,
-                Visit.checkout_time.is_(None),
-            )
-            .options(so.joinedload(Visit.student))
-        ).all()
+    @typing.overload
+    def get_active_visits_before(
+        self,
+        time: datetime,
+        *,
+        raw: typing.Literal[False] = False,
+        csu_id: str | None = None,
+    ) -> list[VisitDTO]: ...
+    @typing.overload
+    def get_active_visits_before(
+        self,
+        time: datetime,
+        *,
+        raw: typing.Literal[True],
+        csu_id: str | None = None,
+    ) -> abc.Sequence[Visit]: ...
+    def get_active_visits_before(
+        self, time: datetime, *, raw: bool = False, csu_id: str | None = None
+    ):
+        statement = sa.select(Visit).where(
+            Visit.checkout_time.is_(None),
+            Visit.check_in_time < time,
+        )
+
+        if csu_id:
+            statement.where(Visit.csu_id == csu_id)
+        # .options(so.joinedload(Visit.student))
+
+        visits = self._db.session.scalars(statement).all()
+
+        if raw:
+            return visits
+        else:
+            return [VisitDTO.model_validate(visit) for visit in visits]
 
     def get_visits_in_range(
-        self, start_time: datetime, end_time: datetime, *, only_active: bool = False
+        self,
+        start_time: datetime,
+        end_time: datetime,
+        *,
+        only_active: bool = False,
+        include_mappings: bool = False,
     ):
         # rows = self._db.session.execute(
         #     sa.select(
@@ -81,24 +115,25 @@ class AttendanceRepository:
                 Visit.check_in_time >= start_time,
                 Visit.check_in_time < end_time,
             )
-            .options(so.joinedload(Visit.student))
             .order_by(Visit.check_in_time.desc())
         )
 
-        if only_active is True:
+        if only_active:
             statement = statement.where(Visit.checkout_time.is_(None))
+        if include_mappings:
+            statement.options(so.joinedload(Visit.student))
 
-        return VisitsListDTO.model_validate(self._db.session.scalars(statement).all())
+        visits = self._db.session.scalars(statement).all()
+
+        dto = MappedVisitDTO if include_mappings else VisitDTO
+
+        return [dto.model_validate(visit) for visit in visits]
 
     # def get_todays_active_visits(self):
     #     start_time = utc_start_of_today()
     #     end_time = start_time + timedelta(days=1)
 
     #     return self.get_active_visits_in_range(start_time, end_time)
-
-    def create(self, csu_id: str):
-        self._db.session.add(Visit(csu_id=csu_id))
-        self._db.session.commit()
 
     def check_out(self, visit: Visit, *, to_eod=False):
         # visit.set_checkout_time(to_eod=True)
@@ -109,3 +144,11 @@ class AttendanceRepository:
             visit.checkout_time = utc_now()
 
         self._db.session.commit()
+
+    def close_previous_day_visits(self, *, csu_id: str | None = None):
+        visits = self.get_active_visits_before(
+            utc_start_of_today(), csu_id=csu_id, raw=True
+        )
+
+        for visit in visits:
+            self.check_out(visit, to_eod=True)

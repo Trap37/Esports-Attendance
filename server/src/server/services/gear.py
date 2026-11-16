@@ -1,17 +1,21 @@
 import typing
 
-from server.dependencies import get_attendance_service
 from server.schemas.gear import (
     ActiveCheckoutsCountResult,
     ActiveGearCheckoutDTO,
     ActiveGearCheckoutsResult,
     CreateGearCheckoutRequest,
     GearCheckoutResult,
+    GearCheckoutReturnRequest,
     MappedGearCheckoutDTO,
 )
 from server.services.attendance import AttendanceService
 from server.utils.dates import utc_time_is_before_today
-from server.utils.errors import ActiveCheckoutExistsError, StudentNotFoundError
+from server.utils.errors import (
+    ActiveCheckoutExistsError,
+    CheckoutNotFoundError,
+    StudentNotFoundError,
+)
 
 if typing.TYPE_CHECKING:
     from server.repositories.attendance import AttendanceRepository
@@ -43,14 +47,20 @@ class GearCheckoutService:
         if visit is None:
             self.attendance.create(student.csu_id)
         elif utc_time_is_before_today(visit.check_in_time):
-            attendance_service = get_attendance_service()
-            attendance_service._close_previous_day_visits(student.csu_id)
-            attendance_service._close_previous_day_checkouts(student.csu_id)
+            self.attendance.close_previous_day_visits(csu_id=student.csu_id)
+            self.gear_checkouts.close_previous_day_checkouts(csu_id=student.csu_id)
 
             self.attendance.create(student.csu_id)
 
         checkout = self.gear_checkouts.create(student.csu_id, request.items)
         return GearCheckoutResult(checkout_id=str(checkout.checkout_id))
+
+    def return_gear(self, request: GearCheckoutReturnRequest):
+        checkout = self.gear_checkouts.return_checkout(request.checkout_id)
+        if checkout is None:
+            raise CheckoutNotFoundError(request.checkout_id)
+
+        return checkout
 
     def get_gear_stats(self):
         # TICKET:: Mousepad and headset can just be separate why combined?

@@ -62,3 +62,8 @@ class CreateGearCheckoutRequest(BaseDTO):
 
 class GearCheckoutResult(BaseDTO):
     checkout_id: str
+
+
+class GearCheckoutReturnRequest(BaseDTO):
+    checkout_id: str
+    scan_id: str

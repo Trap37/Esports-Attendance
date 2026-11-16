@@ -43,6 +43,14 @@ class StudentNotFoundError(GearCheckoutError):
         super().__init__(f'No student found with scan ID: {scan_id}')
 
 
+class CheckoutNotFoundError(GearCheckoutError):
+    code = 'CHECKOUT_NOT_FOUND'
+    status_code = 404
+
+    def __init__(self, checkout_id: str) -> None:
+        super().__init__(f'No Checkout found with ID: {checkout_id}')
+
+
 class ActiveCheckoutExistsError(GearCheckoutError):
     code = 'ACTIVE_CHECKOUT_EXISTS'
     status_code = 409

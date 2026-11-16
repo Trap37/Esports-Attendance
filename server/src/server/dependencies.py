@@ -4,6 +4,7 @@ from server.services.gear import GearCheckoutService
 from server.services.students import StudentsService
 
 
+# TODO: Implement a unit of work abstraction
 def get_attendance_service() -> AttendanceService:
     from server.repositories.attendance import AttendanceRepository
     from server.repositories.gear import GearCheckoutRepository

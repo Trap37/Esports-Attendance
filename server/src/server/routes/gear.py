@@ -7,9 +7,14 @@ from server.schemas.gear import (
     ActiveGearCheckoutsResult,
     CreateGearCheckoutRequest,
     GearCheckoutResult,
+    GearCheckoutReturnRequest,
 )
 from server.schemas.responses import ErrorDetail, ErrorResponse, SuccessResponse
-from server.utils.errors import ActiveCheckoutExistsError, StudentNotFoundError
+from server.utils.errors import (
+    ActiveCheckoutExistsError,
+    CheckoutNotFoundError,
+    StudentNotFoundError,
+)
 
 bp = Blueprint('gear', __name__)
 
@@ -60,12 +65,7 @@ def gear_checkout():
         service = get_gear_checkout_service()
 
         result = service.checkout(data)
-    except StudentNotFoundError as e:
-        return jsonify(
-            ErrorResponse(message=str(e), error=ErrorDetail(code=e.code)),
-            e.status_code,
-        )
-    except ActiveCheckoutExistsError as e:
+    except (StudentNotFoundError, ActiveCheckoutExistsError) as e:
         return jsonify(
             ErrorResponse(message=str(e), error=ErrorDetail(code=e.code)),
             e.status_code,
@@ -80,6 +80,30 @@ def gear_checkout():
 
 @bp.post('/return/<int:checkout_id>')
 def gear_return(checkout_id: int):
-    response = ...
+    try:
+        data = request.get_json(silent=True) or {}
+        data['checkout_id'] = checkout_id
+        data = GearCheckoutReturnRequest.model_validate(data)
+    except ValidationError as e:
+        return jsonify(
+            ErrorResponse(
+                message='Invalid return request',
+                error=ErrorDetail(code='INVALID_REQUEST'),
+            ).include_error_details(e)
+        )
 
-    return jsonify(SuccessResponse[None])
+    try:
+        service = get_gear_checkout_service()
+
+        result = service.return_gear(data)
+    except CheckoutNotFoundError as e:
+        return jsonify(
+            ErrorResponse(message=str(e), error=ErrorDetail(code=e.code)),
+            e.status_code,
+        )
+
+    response = SuccessResponse[None](
+        message='Gear returned successfully.',
+    )
+
+    return jsonify(response.model_dump(mode='json'))

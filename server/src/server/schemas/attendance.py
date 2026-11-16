@@ -24,10 +24,14 @@ class VisitDTO(BaseDTO):
     check_in_time: schema_types.UTCDateTime
     checkout_time: schema_types.UTCDateTime | None = None
 
-    student: StudentDTO
+    # student: StudentDTO
 
     day_of_week: str
     is_checked_out: bool
+
+
+class MappedVisitDTO(VisitDTO):
+    student: StudentDTO
 
 
 class VisitsListDTO(RootModel[list[VisitDTO]]): ...
@@ -137,6 +141,6 @@ class AttendanceHistoryResponse(BaseResponse):
     def count(self) -> int:
         return len(self.rows)
 
-    @field_serializer('start', 'end')
-    def to_iso_format(self, value: date):
-        return value.isoformat()
+    # @field_serializer('start', 'end')
+    # def to_iso_format(self, value: date):
+    #     return value.isoformat()
