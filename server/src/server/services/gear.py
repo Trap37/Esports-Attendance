@@ -39,11 +39,11 @@ class GearCheckoutService:
         if student is None:
             raise StudentNotFoundError(request.scan_id)
 
-        active = self.gear_checkouts.get_active_checkout(student.csu_id)
+        active = self.gear_checkouts.get_by_csu_id(student.csu_id)
         if active is not None:
             raise ActiveCheckoutExistsError(student.csu_id)
 
-        visit = self.attendance.get_active_visit(student.csu_id)
+        visit = self.attendance.get_by_csu_id(student.csu_id)
         if visit is None:
             self.attendance.create(student.csu_id)
         elif utc_time_is_before_today(visit.check_in_time):

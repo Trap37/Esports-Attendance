@@ -1,17 +1,3 @@
-from pydantic import ValidationError
-
-
-def depricated_format_pydantic_validation_errors(errors: ValidationError):
-    return [
-        {
-            'field': '.'.join(str(part) for part in error['loc']),
-            'message': error['msg'],
-            'type': error['type'],
-        }
-        for error in errors.errors()
-    ]
-
-
 # TODO: Register a Flask error handler
 # @app.errorhandler(AppError)
 # def handle_app_error(error: AppError):
@@ -30,17 +16,37 @@ class AppError(Exception):
     status_code: int
 
 
-class GearCheckoutError(AppError):
-    """Base exception for gear checkout operations."""
+class StudentError(AppError):
+    """Base exception for student operations"""
 
 
-class StudentNotFoundError(GearCheckoutError):
+class StudentNotFoundError(StudentError):
     code = 'STUDENT_NOT_FOUND'
     status_code = 404
 
     def __init__(self, scan_id: str):
         self.scan_id = scan_id
         super().__init__(f'No student found with scan ID: {scan_id}')
+
+
+class StudentAlreadyExistsError(StudentError):
+    code = 'STUDENT_ALREADY_EXISTS'
+    status_code = 409
+
+    def __init__(self, csu_id: str) -> None:
+        super().__init__(f'A student with csu_id "{csu_id}" already exists')
+
+
+class DuplicateScanIDError(StudentError):
+    code = 'DUPLICATE_SCAN_ID'
+    status_code = 409
+
+    def __init__(self, scan_id: str) -> None:
+        super().__init__(f'Scan ID "{scan_id}" is already in use')
+
+
+class GearCheckoutError(AppError):
+    """Base exception for gear checkout operations."""
 
 
 class CheckoutNotFoundError(GearCheckoutError):

@@ -3,41 +3,47 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel, field_validator
 
+import server.schemas.types as schema_types
 from server.schemas.base import BaseDTO
-from server.schemas.types import GradeLevel
 from server.utils.dates import utc_now
 
 
 class StudentDTO(BaseDTO):
-    csu_id: str = Field(max_length=8)
-    scan_id: str = Field(max_length=8)
-    full_name: str = Field(max_length=128)
-    major: str = Field(max_length=64)
-    grade_level: GradeLevel
+    csu_id: schema_types.CSU_ID
+    scan_id: schema_types.SCAN_ID
+    full_name: schema_types.FULL_NAME
+    major: schema_types.MAJOR
+    grade_level: schema_types.GradeLevel
 
 
-class ListStudentsResult(RootModel[list[StudentDTO]]): ...
+class RegisterStudentRequest(BaseDTO):
+    csu_id: schema_types.CSU_ID
+    scan_id: schema_types.SCAN_ID
+    full_name: schema_types.FULL_NAME
+    major: schema_types.MAJOR
+    grade_level: schema_types.GradeLevel
 
 
-class ListStudentsResponse(BaseModel):
+class RegisterStudentResult(RootModel[StudentDTO]): ...
+
+
+class ListStudentsRequest(BaseDTO):
+    query: str = Field(serialization_alias='q')
+
+
+class ListStudentsResult(BaseDTO):
     students: list[StudentDTO]
 
 
-class StudentRegistrationError(BaseModel):
-    error: str = 'A student with that Scan ID already exists'
+class GetStudentResult(RootModel[StudentDTO]): ...
 
 
-class StudentRetrievalError(BaseModel):
-    error: str = 'Student not found'
+class StudentUpdateRequest(BaseDTO):
+    scanner_code: schema_types.SCAN_ID
+    scan_id: schema_types.SCAN_ID
+    full_name: schema_types.FULL_NAME
+    major: schema_types.MAJOR
+    grade_level: schema_types.GradeLevel
 
 
-class StudentUpdate(BaseDTO):
-    scanner_code: str = Field(max_length=8)
-    scan_id: str = Field(max_length=8)
-    full_name: str = Field(max_length=128)
-    major: str = Field(max_length=64)
-    grade_level: GradeLevel
-
-
-class StudentUpdateError(BaseModel):
-    error: str = 'Student not found'
+class StudentUpdateResponse(RootModel[StudentDTO]): ...

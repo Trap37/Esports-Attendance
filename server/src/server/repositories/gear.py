@@ -4,6 +4,7 @@ from datetime import datetime
 
 import sqlalchemy as sa
 import sqlalchemy.orm as so
+from sqlalchemy.exc import IntegrityError
 
 from server.models.gear import GearCheckout
 from server.schemas.gear import (
@@ -28,24 +29,29 @@ class GearCheckoutRepository:
         self._db = db
 
     def create(self, csu_id: str, items: GearCheckoutItemDTO):
-        checkout = GearCheckout(
-            csu_id=csu_id,
-            keyboard=items.keyboard,
-            mouse=items.mouse,
-            mousepad=items.mousepad,
-            headset=items.headset,
-        )
-        self._db.session.add(checkout)
-        self._db.session.commit()
-        return GearCheckoutDTO.model_validate(checkout)
-
-    def get_active_checkout(self, csu_id: str):
-        return self._db.session.scalar(
-            sa.select(GearCheckout).where(
-                GearCheckout.csu_id == csu_id,
-                GearCheckout.returned_time.is_(None),
+        try:
+            checkout = GearCheckout(
+                csu_id=csu_id,
+                keyboard=items.keyboard,
+                mouse=items.mouse,
+                mousepad=items.mousepad,
+                headset=items.headset,
             )
+            self._db.session.add(checkout)
+            self._db.session.commit()
+            return GearCheckoutDTO.model_validate(checkout)
+        except IntegrityError:
+            self._db.session.rollback()
+
+    def get_by_csu_id(self, csu_id: str):
+        statement = sa.select(GearCheckout).where(
+            GearCheckout.csu_id == csu_id,
+            GearCheckout.returned_time.is_(None),
         )
+
+        checkout = self._db.session.scalar(statement)
+
+        return GearCheckoutDTO.model_validate(checkout)
 
     def get_by_checkout_id(self, checkout_id: int | str, *, raw: bool = False):
         checkout = self._db.session.scalar(

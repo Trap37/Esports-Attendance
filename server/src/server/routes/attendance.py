@@ -3,15 +3,14 @@ from pydantic import ValidationError
 
 from server.dependencies import get_attendance_service
 from server.schemas.attendance import (
-    ActiveStudentsResponse,
-    AttendanceHistoryResponse,
-    AttendanceTodayResponse,
-    ScanResponse,
-    StudentScanDTO,
+    ActiveStudentsResult,
+    AttendanceHistoryResult,
+    CurrentAttendanceResult,
+    DateRange,
+    ScanResult,
+    StudentScanRequest,
 )
-from server.schemas.responses import SuccessResponse
-from server.schemas.types import DateRange
-from server.utils.errors import depricated_format_pydantic_validation_errors
+from server.schemas.responses import ErrorDetail, ErrorResponse, SuccessResponse
 
 bp = Blueprint('attendance', __name__)
 
@@ -19,25 +18,39 @@ bp = Blueprint('attendance', __name__)
 @bp.post('/scan')
 def scan():
     try:
-        student_scan = StudentScanDTO.model_validate(
-            request.get_json(silent=True) or {}
-        )
+        data = StudentScanRequest.model_validate(request.get_json(silent=True) or {})
     except ValidationError as e:
-        errors = depricated_format_pydantic_validation_errors(e)
-        return jsonify({'errors': errors}), 400
+        return jsonify(
+            ErrorResponse(
+                message='Invalid scan event request.',
+                error=ErrorDetail(code='INVALID_REQUEST'),
+            )
+            .include_error_details(e)
+            .model_dump(mode='json')
+        ), 400
 
     service = get_attendance_service()
-    result = service.process_scan(student_scan.scan_id)
-    return jsonify(ScanResponse.from_scan_result(result).model_dump(mode='json'))
+
+    result = service.process_scan(data)
+
+    response = SuccessResponse[ScanResult](
+        message='Student scan event successful.', data=result
+    )
+
+    return jsonify(response.model_dump(mode='json'))
 
 
 @bp.get('/today')
 def attendance_today():
     service = get_attendance_service()
+
     result = service.get_todays_attendance()
-    # print(result.root)
-    # print(AttendanceTodayResponse.from_visits(result).model_dump_json())
-    return jsonify(AttendanceTodayResponse.from_visits(result).model_dump(mode='json'))
+
+    response = SuccessResponse[CurrentAttendanceResult](
+        message='Current attending students retrieval successful', data=result
+    )
+
+    return jsonify(response.model_dump(mode='json'))
 
 
 @bp.get('/history')
@@ -50,41 +63,34 @@ def attendance_history():
             }
         )
     except ValidationError as e:
-        errors = depricated_format_pydantic_validation_errors(e)
-        return jsonify({'errors': errors}), 400
+        return jsonify(
+            ErrorResponse(
+                message='Invalid history request.',
+                error=ErrorDetail(code='INVALID_REQUEST'),
+            )
+            .include_error_details(e)
+            .model_dump(mode='json')
+        ), 400
 
     service = get_attendance_service()
+
     result = service.get_attendance_in_range(date_range, include_mappings=True)
 
-    return jsonify(
-        AttendanceHistoryResponse.model_validate(
-            {
-                'start': date_range.start,
-                'end': date_range.end,
-                'rows': result,
-            },
-            from_attributes=True,
-        ).model_dump(mode='json')
+    response = SuccessResponse[AttendanceHistoryResult](
+        message='Attendance history retrieval successful.', data=result
     )
-    # return jsonify(
-    #     {
-    #         'start': date_range.start.isoformat(),
-    #         'end': date_range.end.isoformat(),
-    #         'count': len(rows),
-    #         'rows': rows,
-    #     }
-    # )
+
+    return jsonify(response.model_dump(mode='json'))
 
 
 @bp.get('/active')
 def active_attendees():
     service = get_attendance_service()
+
     result = service.get_active_attendance()
 
-    return jsonify(
-        ActiveStudentsResponse.model_validate(
-            {
-                'students': result,
-            }
-        ).model_dump(mode='json')
+    response = SuccessResponse[list[ActiveStudentsResult]](
+        message='Active visits retrieval successful.', data=result
     )
+
+    return jsonify(response.model_dump(mode='json'))

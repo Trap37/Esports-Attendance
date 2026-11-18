@@ -4,10 +4,11 @@ from datetime import UTC, datetime, timedelta
 
 import sqlalchemy as sa
 import sqlalchemy.orm as so
+from sqlalchemy.exc import IntegrityError
 
 from server.models.student import Student
 from server.models.visit import Visit
-from server.schemas.attendance import ActiveVisitDTO, MappedVisitDTO, VisitDTO
+from server.schemas.attendance import MappedVisitDTO, ScanEvent, VisitDTO
 from server.utils.dates import (
     set_end_of_day,
     to_eastern_datetime,
@@ -24,17 +25,25 @@ class AttendanceRepository:
         self._db = db
 
     def create(self, csu_id: str):
-        self._db.session.add(Visit(csu_id=csu_id))
-        self._db.session.commit()
+        try:
+            visit = Visit(csu_id=csu_id)
 
-    # FIXME: use active=True param instead of assuming user wants active only
-    def get_active_visit(self, csu_id: str):
-        return self._db.session.scalar(
-            sa.select(Visit).where(
-                Visit.csu_id == csu_id,
-                Visit.checkout_time.is_(None),
-            )
+            self._db.session.add(visit)
+            self._db.session.commit()
+
+            return visit
+        except IntegrityError:
+            self._db.session.rollback()
+
+    def get_by_csu_id(self, csu_id: str):
+        statement = sa.select(Visit).where(
+            Visit.csu_id == csu_id,
+            Visit.checkout_time.is_(None),
         )
+
+        visit = self._db.session.scalar(statement)
+
+        return VisitDTO.model_validate(visit)
 
     @typing.overload
     def get_active_visits_before(
@@ -77,6 +86,7 @@ class AttendanceRepository:
         end_time: datetime,
         *,
         only_active: bool = False,
+        order_by_time: bool = False,
         include_mappings: bool = False,
     ):
         # rows = self._db.session.execute(
@@ -100,26 +110,15 @@ class AttendanceRepository:
         # ).all()
 
         # return [ActiveStudentDTO.model_validate(row) for row in rows]
-        # TODO: Make this a decorator to check all date params for being utc
-        if (
-            start_time.tzinfo is None
-            or start_time.utcoffset() != timedelta(0)
-            or end_time.tzinfo is None
-            or end_time.utcoffset() != timedelta(0)
-        ):
-            raise ValueError('Datetime must be UTC-aware')
-
-        statement = (
-            sa.select(Visit)
-            .where(
-                Visit.check_in_time >= start_time,
-                Visit.check_in_time < end_time,
-            )
-            .order_by(Visit.check_in_time.desc())
+        statement = sa.select(Visit).where(
+            Visit.check_in_time >= start_time,
+            Visit.check_in_time < end_time,
         )
 
         if only_active:
             statement = statement.where(Visit.checkout_time.is_(None))
+        if order_by_time:
+            statement = statement.order_by(Visit.check_in_time.desc())
         if include_mappings:
             statement.options(so.joinedload(Visit.student))
 
@@ -135,15 +134,28 @@ class AttendanceRepository:
 
     #     return self.get_active_visits_in_range(start_time, end_time)
 
-    def check_out(self, visit: Visit, *, to_eod=False):
-        # visit.set_checkout_time(to_eod=True)
+    def check_out(self, visit_id: str | int, *, to_eod=False):
+        visit = self._db.session.scalar(
+            sa.select(Visit).where(
+                Visit.visit_id == visit_id,
+                Visit.checkout_time.is_(None),
+            )
+        )
+        if visit is None:
+            return None
+
+        self._check_out(visit, to_eod=to_eod)
+
+        self._db.session.commit()
+
+        return VisitDTO.model_validate(visit)
+
+    def _check_out(self, visit: Visit, *, to_eod: bool = False):
         if to_eod:
             local_datetime = to_eastern_datetime(visit.check_in_time)
             visit.checkout_time = set_end_of_day(local_datetime.date())
         else:
             visit.checkout_time = utc_now()
-
-        self._db.session.commit()
 
     def close_previous_day_visits(self, *, csu_id: str | None = None):
         visits = self.get_active_visits_before(
@@ -151,4 +163,6 @@ class AttendanceRepository:
         )
 
         for visit in visits:
-            self.check_out(visit, to_eod=True)
+            self._check_out(visit, to_eod=True)
+
+        self._db.session.commit()

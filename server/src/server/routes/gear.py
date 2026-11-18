@@ -58,7 +58,9 @@ def gear_checkout():
             ErrorResponse(
                 message='Invalid checkout request.',
                 error=ErrorDetail(code='INVALID_REQUEST'),
-            ).include_error_details(e)
+            )
+            .include_error_details(e)
+            .model_dump(mode='json')
         ), 400
 
     try:
@@ -67,7 +69,9 @@ def gear_checkout():
         result = service.checkout(data)
     except (StudentNotFoundError, ActiveCheckoutExistsError) as e:
         return jsonify(
-            ErrorResponse(message=str(e), error=ErrorDetail(code=e.code)),
+            ErrorResponse(message=str(e), error=ErrorDetail(code=e.code)).model_dump(
+                mode='json'
+            ),
             e.status_code,
         )
 
@@ -89,7 +93,9 @@ def gear_return(checkout_id: int):
             ErrorResponse(
                 message='Invalid return request',
                 error=ErrorDetail(code='INVALID_REQUEST'),
-            ).include_error_details(e)
+            )
+            .include_error_details(e)
+            .model_dump(mode='json')
         )
 
     try:
@@ -98,7 +104,9 @@ def gear_return(checkout_id: int):
         result = service.return_gear(data)
     except CheckoutNotFoundError as e:
         return jsonify(
-            ErrorResponse(message=str(e), error=ErrorDetail(code=e.code)),
+            ErrorResponse(message=str(e), error=ErrorDetail(code=e.code)).model_dump(
+                mode='json'
+            ),
             e.status_code,
         )
 

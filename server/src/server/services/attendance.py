@@ -3,11 +3,21 @@
 import typing
 from datetime import timedelta
 
-from server.schemas.attendance import ScanResult
-from server.schemas.types import DateRange, ScanStatus
+from server.schemas.attendance import (
+    ActiveStudentsResult,
+    AttendanceHistoryResult,
+    AttendanceHistoryResultRow,
+    CurrentAttendanceResult,
+    DateRange,
+    MappedVisitDTO,
+    ScanResult,
+    StudentScanRequest,
+)
+from server.schemas.types import ScanStatus
 from server.utils.dates import (
     eastern_date_range_to_utc,
     eastern_now,
+    to_eastern_datetime,
     utc_now,
     utc_start_of_today,
     utc_time_is_before_today,
@@ -30,16 +40,15 @@ class AttendanceService:
         self.attendance = attendance_repository
         self.gear_checkouts = gear_checkout_repository
 
-    def process_scan(self, scan_id: str):
-        student = self.students.get_by_scan_id(scan_id)
-
+    def process_scan(self, request: StudentScanRequest):
+        student = self.students.get_by_scan_id(request.scan_id)
         if student is None:
             return ScanResult(
                 student_name=None,
                 status=ScanStatus.STUDENT_NOT_FOUND,
             )
 
-        visit = self.attendance.get_active_visit(student.csu_id)
+        visit = self.attendance.get_by_csu_id(student.csu_id)
         if visit is None:
             # Student has no active check-ins or outs.
             self.attendance.create(student.csu_id)
@@ -58,7 +67,7 @@ class AttendanceService:
                 status=ScanStatus.CHECKING_IN,
             )
 
-        gear_checkout = self.gear_checkouts.get_active_checkout(student.csu_id)
+        gear_checkout = self.gear_checkouts.get_by_csu_id(student.csu_id)
         if gear_checkout is not None:
             # Student has an unclosed gear checkout
             return ScanResult(
@@ -66,30 +75,51 @@ class AttendanceService:
                 status=ScanStatus.GEAR_RETURN_REQUIRED,
             )
 
-        self.attendance.check_out(visit)
-
+        visit = self.attendance.check_out(visit.visit_id)
         return ScanResult(
             student_name=student.full_name,
             status=ScanStatus.CHECKING_OUT,
-            checkout_time=eastern_now(),
+            checkout_time=visit.checkout_time,
         )
 
     def get_todays_attendance(self):
         """Return a list of student names who are scanned in right now."""
-        # return self.attendance.get_todays_active_visits()
         start_time = utc_start_of_today()
         end_time = start_time + timedelta(days=1)
 
-        return self.attendance.get_visits_in_range(start_time, end_time)
+        visits = self.attendance.get_visits_in_range(
+            start_time,
+            end_time,
+            only_active=True,
+            order_by_time=True,
+            include_mappings=True,
+        )
+
+        return CurrentAttendanceResult(
+            students=[
+                ActiveVisitDto(
+                    student_name=visit.student.full_name,
+                    check_in_time=visit.check_in_time,
+                    checkout_time=visit.checkout_time,
+                )
+                for visit in visits
+            ]
+        )
 
     def get_active_attendance(self):
         start_time = utc_start_of_today()
         end_time = start_time + timedelta(days=1)
 
-        students = self.attendance.get_visits_in_range(
+        visits = self.attendance.get_visits_in_range(
             start_time, end_time, only_active=True, include_mappings=True
         )
-        return students
+
+        return [
+            ActiveStudentsResult(
+                scan_id=visit.student.scan_id, full_name=visit.student.full_name
+            )
+            for visit in visits
+        ]
 
     def get_attendance_in_range(
         self, date_range: DateRange, *, include_mappings: bool = False
@@ -99,6 +129,23 @@ class AttendanceService:
             date_range.end,
         )
 
-        return self.attendance.get_visits_in_range(
+        attendance = self.attendance.get_visits_in_range(
             start, end, include_mappings=include_mappings
+        )
+
+        return AttendanceHistoryResult(
+            start=start.date(),
+            end=end.date(),
+            rows=[
+                AttendanceHistoryResultRow(
+                    check_in_time=visit.check_in_time,
+                    day_of_week=visit.day_of_week,
+                    scan_id=visit.student.scan_id,
+                    csu_id=visit.student.csu_id,
+                    full_name=visit.student.full_name,
+                    major=visit.student.major,
+                    grade_level=visit.student.grade_level,
+                )
+                for visit in attendance
+            ],
         )
